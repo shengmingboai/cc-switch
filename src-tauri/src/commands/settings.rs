@@ -170,7 +170,7 @@ pub async fn restore_codex_unified_history() -> Result<CodexUnifyHistoryRestoreR
     })
 }
 
-/// 重启应用程序（当 app_config_dir 变更后使用）
+/// 重启应用程序
 #[tauri::command]
 pub async fn restart_app(app: AppHandle) -> Result<bool, String> {
     crate::save_window_state_before_exit(&app);
@@ -179,10 +179,8 @@ pub async fn restart_app(app: AppHandle) -> Result<bool, String> {
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         // app.restart() 走 RESTART_EXIT_CODE 路径，ExitRequested 处理器会直接
-        // 放行给 Tauri 默认 re-exec，不执行代理/Live 清理。但本命令用于
-        // app_config_dir 变更后的重启：新实例会切到新数据库，拿不到旧库里的
-        // Live 备份，无法恢复被接管的 Live 配置。因此必须趁旧实例的事件循环
-        // 仍存活，在这里同步完成恢复（保留代理状态，新实例启动时自动重新接管）。
+        // 放行给 Tauri 默认 re-exec，不执行代理/Live 清理。因此必须趁旧实例的
+        // 事件循环仍存活，在这里同步完成恢复（保留代理状态，新实例启动时自动接管）。
         crate::cleanup_before_exit(&app).await;
         app.restart();
     });
@@ -284,20 +282,29 @@ pub async fn check_app_update_available(app: AppHandle) -> Result<Option<String>
     Ok(update.map(|u| u.version))
 }
 
-/// 获取 app_config_dir 覆盖配置 (从 Store)
+/// 返回固定的便携配置目录，保留旧 IPC 名称以兼容现有前端。
 #[tauri::command]
-pub async fn get_app_config_dir_override(app: AppHandle) -> Result<Option<String>, String> {
-    Ok(crate::app_store::refresh_app_config_dir_override(&app)
-        .map(|p| p.to_string_lossy().to_string()))
+pub async fn get_app_config_dir_override() -> Result<Option<String>, String> {
+    Ok(Some(
+        crate::config::get_app_config_dir()
+            .to_string_lossy()
+            .to_string(),
+    ))
 }
 
-/// 设置 app_config_dir 覆盖配置 (到 Store)
+/// 保留旧 IPC 名称以兼容现有前端；严格便携模式不允许修改配置目录。
 #[tauri::command]
-pub async fn set_app_config_dir_override(
-    app: AppHandle,
-    path: Option<String>,
-) -> Result<bool, String> {
-    crate::app_store::set_app_config_dir_to_store(&app, path.as_deref())?;
+pub async fn set_app_config_dir_override(path: Option<String>) -> Result<bool, String> {
+    if let Some(requested_path) = path
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let fixed_path = crate::config::get_app_config_dir();
+        if std::path::Path::new(requested_path) != fixed_path {
+            return Err("CC Switch 配置目录固定为启动 EXE 同级的 data 文件夹".to_string());
+        }
+    }
     Ok(true)
 }
 

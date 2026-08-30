@@ -340,7 +340,7 @@ pub struct CodexOfficialHistoryUnifyMigration {
 
 /// 应用设置结构
 ///
-/// 存储设备级别设置，保存在本地 `~/.cc-switch/settings.json`，不随数据库同步。
+/// 存储设备级别设置，保存在本地 `<app_config_dir>/settings.json`，不随数据库同步。
 /// 这确保了云同步场景下多设备可以独立运作。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -574,11 +574,7 @@ impl Default for AppSettings {
 impl AppSettings {
     fn settings_path() -> Option<PathBuf> {
         // settings.json 保留用于旧版本迁移和无数据库场景
-        Some(
-            crate::config::get_home_dir()
-                .join(".cc-switch")
-                .join("settings.json"),
-        )
+        Some(crate::config::get_app_config_dir().join("settings.json"))
     }
 
     fn normalize_paths(&mut self) {
@@ -642,7 +638,7 @@ impl AppSettings {
             .language
             .as_ref()
             .map(|s| s.trim())
-            .filter(|s| matches!(*s, "en" | "zh" | "zh-TW" | "ja"))
+            .filter(|s| matches!(*s, "en" | "zh"))
             .map(|s| s.to_string());
 
         if let Some(sync) = &mut self.webdav_sync {
@@ -1227,5 +1223,24 @@ mod tests {
             resolve_override_path(r"~\pi\agent"),
             home.join("pi").join("agent")
         );
+    }
+
+    #[test]
+    fn normalize_paths_keeps_only_chinese_and_english_languages() {
+        for (language, expected) in [
+            ("zh", Some("zh")),
+            ("en", Some("en")),
+            ("zh-TW", None),
+            ("ja", None),
+        ] {
+            let mut settings = AppSettings {
+                language: Some(language.to_string()),
+                ..AppSettings::default()
+            };
+
+            settings.normalize_paths();
+
+            assert_eq!(settings.language.as_deref(), expected);
+        }
     }
 }

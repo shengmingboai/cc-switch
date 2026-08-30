@@ -103,7 +103,7 @@ let settingsState: Settings = {
   codexConfigDir: "/default/codex",
   language: "zh",
 };
-let appConfigDirOverride: string | null = null;
+let appConfigDirOverride: string | null = "/mock/cc-switch/data";
 const sessionMessageKey = (providerId: string, sourcePath: string) =>
   `${providerId}:${sourcePath}`;
 
@@ -223,7 +223,7 @@ export const resetProviderState = () => {
     codexConfigDir: "/default/codex",
     language: "zh",
   };
-  appConfigDirOverride = null;
+  appConfigDirOverride = "/mock/cc-switch/data";
   mcpConfigs = {
     claude: {
       sample: {

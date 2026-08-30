@@ -77,15 +77,11 @@ export function SettingsPage({
     isLoading,
     isSaving,
     isPortable,
-    appConfigDir,
     resolvedDirs,
     updateSettings,
     updateDirectory,
-    updateAppConfigDir,
     browseDirectory,
-    browseAppConfigDir,
     resetDirectory,
-    resetAppConfigDir,
     saveSettings,
     autoSaveSettings,
     requiresRestart,
@@ -344,11 +340,7 @@ export function SettingsPage({
                         </AccordionTrigger>
                         <AccordionContent className="px-6 pb-6 pt-4 border-t border-border/50">
                           <DirectorySettings
-                            appConfigDir={appConfigDir}
                             resolvedDirs={resolvedDirs}
-                            onAppConfigChange={updateAppConfigDir}
-                            onBrowseAppConfig={browseAppConfigDir}
-                            onResetAppConfig={resetAppConfigDir}
                             claudeDir={settings.claudeConfigDir}
                             codexDir={settings.codexConfigDir}
                             geminiDir={settings.geminiConfigDir}

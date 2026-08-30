@@ -7,7 +7,6 @@ import { SettingsPage } from "@/components/settings/SettingsPage";
 import {
   resetProviderState,
   getSettings,
-  getAppConfigDirOverride,
 } from "../msw/state";
 import { server } from "../msw/server";
 
@@ -152,10 +151,8 @@ describe("SettingsPage integration", () => {
     );
     fireEvent.click(screen.getByText("settings.tabAdvanced"));
     fireEvent.click(screen.getByText("settings.advanced.configDir.title"));
-    const appInput = await screen.findByPlaceholderText(
-      "settings.browsePlaceholderApp",
-    );
-    expect((appInput as HTMLInputElement).value).toBe("/home/mock/.cc-switch");
+    const appInput = await screen.findByDisplayValue("/mock/cc-switch/data");
+    expect(appInput).toHaveAttribute("readonly");
   });
 
   it("imports configuration and triggers success callback", async () => {
@@ -183,7 +180,7 @@ describe("SettingsPage integration", () => {
     expect(getSettings().language).toBe("en");
   });
 
-  it("saves settings and handles restart prompt", async () => {
+  it("saves settings without a data-directory restart prompt", async () => {
     renderDialog();
 
     await waitFor(() =>
@@ -192,22 +189,15 @@ describe("SettingsPage integration", () => {
 
     fireEvent.click(screen.getByText("settings.tabAdvanced"));
     fireEvent.click(screen.getByText("settings.advanced.configDir.title"));
-    const appInput = await screen.findByPlaceholderText(
-      "settings.browsePlaceholderApp",
-    );
-    fireEvent.change(appInput, { target: { value: "/custom/app" } });
     fireEvent.click(screen.getByText("common.save"));
 
     await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
-    await screen.findByText("settings.restartRequired");
-    fireEvent.click(screen.getByText("settings.restartLater"));
-    await waitFor(() =>
-      expect(
-        screen.queryByText("settings.restartRequired"),
-      ).not.toBeInTheDocument(),
-    );
-
-    expect(getAppConfigDirOverride()).toBe("/custom/app");
+    expect(
+      screen.queryByText("settings.restartRequired"),
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByDisplayValue("/mock/cc-switch/data"),
+    ).toHaveAttribute("readonly");
   });
 
   it("allows browsing and resetting directories", async () => {
@@ -223,18 +213,8 @@ describe("SettingsPage integration", () => {
     const browseButtons = screen.getAllByTitle("settings.browseDirectory");
     const resetButtons = screen.getAllByTitle("settings.resetDefault");
 
-    const appInput = (await screen.findByPlaceholderText(
-      "settings.browsePlaceholderApp",
-    )) as HTMLInputElement;
-    expect(appInput.value).toBe("/home/mock/.cc-switch");
-
-    fireEvent.click(browseButtons[0]);
-    await waitFor(() =>
-      expect(appInput.value).toBe("/home/mock/.cc-switch/picked"),
-    );
-
-    fireEvent.click(resetButtons[0]);
-    await waitFor(() => expect(appInput.value).toBe("/home/mock/.cc-switch"));
+    const appInput = await screen.findByDisplayValue("/mock/cc-switch/data");
+    expect(appInput).toHaveAttribute("readonly");
 
     const claudeInput = (await screen.findByPlaceholderText(
       "settings.browsePlaceholderClaude",
@@ -242,12 +222,12 @@ describe("SettingsPage integration", () => {
     fireEvent.change(claudeInput, { target: { value: "/custom/claude" } });
     await waitFor(() => expect(claudeInput.value).toBe("/custom/claude"));
 
-    fireEvent.click(browseButtons[1]);
+    fireEvent.click(browseButtons[0]);
     await waitFor(() =>
       expect(claudeInput.value).toBe("/custom/claude/picked"),
     );
 
-    fireEvent.click(resetButtons[1]);
+    fireEvent.click(resetButtons[0]);
     await waitFor(() => expect(claudeInput.value).toBe("/home/mock/.claude"));
   });
 

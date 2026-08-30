@@ -199,40 +199,52 @@ pub fn get_claude_settings_path() -> PathBuf {
     settings
 }
 
-/// 获取应用配置目录路径 (~/.cc-switch)
+fn executable_sibling_data_dir(executable_path: &Path) -> Option<PathBuf> {
+    executable_path
+        .parent()
+        .map(|executable_dir| executable_dir.join("data"))
+}
+
+/// 获取应用配置目录路径。
+///
+/// Windows 始终使用启动 EXE 同级的 `data/`，确保 MSI 安装版和便携版使用一致的
+/// 本地存储语义。其他平台暂时保留当前工作目录下的 `data/`，避免 macOS App Bundle
+/// 和 Linux AppImage 的只读可执行目录导致启动失败。
+/// 测试场景通过 `CC_SWITCH_TEST_HOME` 隔离为 `<home>/.cc-switch`。
 pub fn get_app_config_dir() -> PathBuf {
-    if let Some(custom) = crate::app_store::get_app_config_dir_override() {
-        return custom;
+    // 测试隔离：显式设置 CC_SWITCH_TEST_HOME 时仍使用 <home>/.cc-switch。
+    if let Ok(test_home) = std::env::var("CC_SWITCH_TEST_HOME") {
+        let trimmed = test_home.trim();
+        if !trimmed.is_empty() {
+            return PathBuf::from(trimmed).join(".cc-switch");
+        }
     }
 
-    let default_dir = get_home_dir().join(".cc-switch");
-
-    // 兼容 v3.10.3：当用户环境存在 `HOME` 且与真实用户目录不同，
-    // v3.10.3 可能在 `HOME/.cc-switch/` 下创建/使用了数据库。
-    // 这里仅在“默认位置没有数据库”时回退到旧位置，避免再次出现“供应商消失”问题，
-    // 同时也避免新安装因为 `HOME` 被设置而写入非预期路径。
-    #[cfg(windows)]
+    #[cfg(target_os = "windows")]
     {
-        let default_db = default_dir.join("cc-switch.db");
-        if !default_db.exists() {
-            if let Ok(home_env) = std::env::var("HOME") {
-                let trimmed = home_env.trim();
-                if !trimmed.is_empty() {
-                    let legacy_dir = PathBuf::from(trimmed).join(".cc-switch");
-                    if legacy_dir.join("cc-switch.db").exists() {
-                        log::info!(
-                            "Detected v3.10.3 legacy database at {}, using it instead of {}",
-                            legacy_dir.display(),
-                            default_dir.display()
-                        );
-                        return legacy_dir;
-                    }
+        match std::env::current_exe() {
+            Ok(executable_path) => {
+                if let Some(data_dir) = executable_sibling_data_dir(&executable_path) {
+                    return data_dir;
                 }
+                log::warn!(
+                    "可执行文件路径没有父目录，回退到当前工作目录: {}",
+                    executable_path.display()
+                );
+            }
+            Err(source) => {
+                log::warn!("无法获取可执行文件路径，回退到当前工作目录: {source}");
             }
         }
     }
 
-    default_dir
+    match std::env::current_dir() {
+        Ok(current_dir) => current_dir.join("data"),
+        Err(source) => {
+            log::warn!("无法获取当前工作目录，回退到相对路径 data: {source}");
+            PathBuf::from("data")
+        }
+    }
 }
 
 /// 获取应用配置文件路径
@@ -501,6 +513,16 @@ fn atomic_write_with_unix_mode(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn executable_sibling_data_dir_uses_executable_parent() {
+        let executable_path = Path::new("portable-root").join("cc-switch.exe");
+
+        assert_eq!(
+            executable_sibling_data_dir(&executable_path),
+            Some(Path::new("portable-root").join("data"))
+        );
+    }
 
     fn assert_atomic_write_replaces_existing_file(dir: &Path) {
         let path = dir.join("atomic-write-contract.json");

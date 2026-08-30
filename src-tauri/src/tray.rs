@@ -65,22 +65,11 @@ pub struct TrayTexts {
 ///
 /// 镜像前端 `i18n/getInitialLanguage` 的判定顺序，确保首次安装
 /// （`settings.language` 尚未写入）时托盘语言与界面语言一致：
-/// 繁中系统（zh-TW/HK/MO/Hant）→ `zh-TW`，其余 zh → `zh`，
-/// 日文 → `ja`，英文 → `en`，未知区域回退到 `zh`（与前端默认一致）。
+/// 所有中文区域 → `zh`，英文 → `en`，其他区域回退到 `zh`。
 fn map_locale_to_tray_language(locale: &str) -> &'static str {
     let locale = locale.to_lowercase();
-    if locale == "zh" {
+    if locale.starts_with("zh") {
         "zh"
-    } else if locale.starts_with("zh-tw")
-        || locale.starts_with("zh-hk")
-        || locale.starts_with("zh-mo")
-        || locale.starts_with("zh-hant")
-    {
-        "zh-TW"
-    } else if locale.starts_with("zh") {
-        "zh"
-    } else if locale.starts_with("ja") {
-        "ja"
     } else if locale.starts_with("en") {
         "en"
     } else {
@@ -108,26 +97,6 @@ impl TrayTexts {
                 _auto_label: "Auto (Failover)",
                 projects_label: "Projects",
                 no_project_label: "No project",
-            },
-            "ja" => Self {
-                show_main: "メインウィンドウを開く",
-                open_website: "公式サイトを開く",
-                no_providers_label: "(プロバイダーなし)",
-                lightweight_mode: "軽量モード",
-                quit: "終了",
-                _auto_label: "自動 (フェイルオーバー)",
-                projects_label: "プロジェクト",
-                no_project_label: "プロジェクトを使用しない",
-            },
-            "zh-TW" => Self {
-                show_main: "開啟主介面",
-                open_website: "開啟官方網站",
-                no_providers_label: "(無供應商)",
-                lightweight_mode: "輕量模式",
-                quit: "退出",
-                _auto_label: "自動 (故障轉移)",
-                projects_label: "專案",
-                no_project_label: "不使用專案",
             },
             _ => Self {
                 show_main: "打开主界面",
@@ -693,8 +662,8 @@ pub fn create_tray_menu(
     app_state: &AppState,
 ) -> Result<Menu<tauri::Wry>, AppError> {
     let app_settings = crate::settings::get_settings();
-    // 用户未显式设置语言（首次安装）时，按系统区域回退而非硬编码简体，
-    // 否则繁中系统的托盘会固定显示简体直到用户手动切换一次。
+    // 用户未显式设置语言（首次安装）时按系统区域选择中文或英语，
+    // 其他系统语言统一回退到项目默认的简体中文。
     let language: &str = match app_settings.language.as_deref() {
         Some(lang) => lang,
         None => detect_system_tray_language(),
@@ -1021,7 +990,10 @@ pub fn handle_tray_menu_event(app: &tauri::AppHandle, event_id: &str) {
             }
         }
         "open_website" => {
-            if let Err(e) = app.opener().open_url("https://ccswitch.io", None::<String>) {
+            if let Err(e) = app
+                .opener()
+                .open_url("https://github.com/shengmingboai/cc-switch", None::<String>)
+            {
                 log::error!("打开官方网站失败: {e}");
             }
         }
@@ -1226,9 +1198,14 @@ mod tests {
     }
 
     #[test]
-    fn locale_maps_traditional_chinese_variants_to_zh_tw() {
+    fn locale_maps_all_chinese_variants_to_zh() {
         use super::map_locale_to_tray_language;
         for locale in [
+            "zh",
+            "zh-CN",
+            "zh-SG",
+            "zh-Hans",
+            "zh-Hans-CN",
             "zh-TW",
             "zh-HK",
             "zh-MO",
@@ -1238,18 +1215,6 @@ mod tests {
         ] {
             assert_eq!(
                 map_locale_to_tray_language(locale),
-                "zh-TW",
-                "expected {locale} -> zh-TW"
-            );
-        }
-    }
-
-    #[test]
-    fn locale_maps_simplified_chinese_variants_to_zh() {
-        use super::map_locale_to_tray_language;
-        for locale in ["zh", "zh-CN", "zh-SG", "zh-Hans", "zh-Hans-CN"] {
-            assert_eq!(
-                map_locale_to_tray_language(locale),
                 "zh",
                 "expected {locale} -> zh"
             );
@@ -1257,19 +1222,22 @@ mod tests {
     }
 
     #[test]
-    fn locale_maps_japanese_and_english() {
+    fn locale_maps_english_to_en() {
         use super::map_locale_to_tray_language;
-        assert_eq!(map_locale_to_tray_language("ja-JP"), "ja");
-        assert_eq!(map_locale_to_tray_language("ja"), "ja");
-        assert_eq!(map_locale_to_tray_language("en-US"), "en");
-        assert_eq!(map_locale_to_tray_language("en"), "en");
+        for locale in ["en-US", "en"] {
+            assert_eq!(
+                map_locale_to_tray_language(locale),
+                "en",
+                "expected {locale} -> en"
+            );
+        }
     }
 
     #[test]
     fn locale_unknown_falls_back_to_zh() {
         use super::map_locale_to_tray_language;
         // 与前端 getInitialLanguage 的默认值保持一致。
-        for locale in ["de-DE", "fr", "ko-KR", ""] {
+        for locale in ["ja-JP", "de-DE", "fr", "ko-KR", ""] {
             assert_eq!(
                 map_locale_to_tray_language(locale),
                 "zh",

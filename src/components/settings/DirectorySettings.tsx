@@ -9,11 +9,7 @@ import type { ResolvedDirectories } from "@/hooks/useSettings";
 type DirectoryAppId = Exclude<AppId, "claude-desktop">;
 
 interface DirectorySettingsProps {
-  appConfigDir?: string;
   resolvedDirs: ResolvedDirectories;
-  onAppConfigChange: (value?: string) => void;
-  onBrowseAppConfig: () => Promise<void>;
-  onResetAppConfig: () => Promise<void>;
   claudeDir?: string;
   codexDir?: string;
   geminiDir?: string;
@@ -28,11 +24,7 @@ interface DirectorySettingsProps {
 }
 
 export function DirectorySettings({
-  appConfigDir,
   resolvedDirs,
-  onAppConfigChange,
-  onBrowseAppConfig,
-  onResetAppConfig,
   claudeDir,
   codexDir,
   geminiDir,
@@ -58,32 +50,12 @@ export function DirectorySettings({
           </p>
         </header>
 
-        <div className="flex items-center gap-2">
-          <Input
-            value={appConfigDir ?? resolvedDirs.appConfig ?? ""}
-            placeholder={t("settings.browsePlaceholderApp")}
-            className="text-xs"
-            onChange={(event) => onAppConfigChange(event.target.value)}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={onBrowseAppConfig}
-            title={t("settings.browseDirectory")}
-          >
-            <FolderSearch className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={onResetAppConfig}
-            title={t("settings.resetDefault")}
-          >
-            <Undo2 className="h-4 w-4" />
-          </Button>
-        </div>
+        <Input
+          value={resolvedDirs.appConfig ?? ""}
+          className="text-xs"
+          readOnly
+          aria-readonly="true"
+        />
       </section>
 
       {/* Claude/Codex 配置目录 - 独立区块 */}

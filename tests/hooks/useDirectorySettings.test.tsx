@@ -6,7 +6,6 @@ import type { SettingsFormState } from "@/hooks/useSettingsForm";
 const getAppConfigDirOverrideMock = vi.hoisted(() => vi.fn());
 const getConfigDirMock = vi.hoisted(() => vi.fn());
 const selectConfigDirectoryMock = vi.hoisted(() => vi.fn());
-const setAppConfigDirOverrideMock = vi.hoisted(() => vi.fn());
 const homeDirMock = vi.hoisted(() => vi.fn<() => Promise<string>>());
 const joinMock = vi.hoisted(() =>
   vi.fn(async (...segments: string[]) => segments.join("/")),
@@ -18,7 +17,6 @@ vi.mock("@/lib/api", () => ({
     getAppConfigDirOverride: getAppConfigDirOverrideMock,
     getConfigDir: getConfigDirMock,
     selectConfigDirectory: selectConfigDirectoryMock,
-    setAppConfigDirOverride: setAppConfigDirOverrideMock,
   },
 }));
 
@@ -64,7 +62,7 @@ describe("useDirectorySettings", () => {
       segments.join("/"),
     );
 
-    getAppConfigDirOverrideMock.mockResolvedValue(null);
+    getAppConfigDirOverrideMock.mockResolvedValue("/portable/data");
     getConfigDirMock.mockImplementation(async (app: string) => {
       if (app === "claude") return "/remote/claude";
       if (app === "codex") return "/remote/codex";
@@ -87,7 +85,7 @@ describe("useDirectorySettings", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(result.current.appConfigDir).toBe("/override/app");
+    expect(result.current.resolvedDirs.appConfig).toBe("/override/app");
     expect(result.current.resolvedDirs).toEqual({
       appConfig: "/override/app",
       claude: "/remote/claude",
@@ -170,27 +168,6 @@ describe("useDirectorySettings", () => {
     });
   });
 
-  it("updates app config directory via browseAppConfigDir", async () => {
-    selectConfigDirectoryMock.mockResolvedValue("  /new/app  ");
-
-    const { result } = renderHook(() =>
-      useDirectorySettings({
-        settings: createSettings(),
-        onUpdateSettings,
-      }),
-    );
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    await act(async () => {
-      await result.current.browseAppConfigDir();
-    });
-
-    expect(result.current.appConfigDir).toBe("/new/app");
-    expect(selectConfigDirectoryMock).toHaveBeenCalledWith(
-      "/home/mock/.cc-switch",
-    );
-  });
-
   it("resets directories to computed defaults", async () => {
     const { result } = renderHook(() =>
       useDirectorySettings({
@@ -206,7 +183,6 @@ describe("useDirectorySettings", () => {
     await act(async () => {
       await result.current.resetDirectory("claude");
       await result.current.resetDirectory("codex");
-      await result.current.resetAppConfigDir();
     });
 
     expect(onUpdateSettings).toHaveBeenCalledWith({
@@ -217,7 +193,6 @@ describe("useDirectorySettings", () => {
     });
     expect(result.current.resolvedDirs.claude).toBe("/home/mock/.claude");
     expect(result.current.resolvedDirs.codex).toBe("/home/mock/.codex");
-    expect(result.current.resolvedDirs.appConfig).toBe("/home/mock/.cc-switch");
   });
 
   it("updates openclaw directory when browsing succeeds", async () => {

@@ -27,16 +27,12 @@ export interface UseSettingsResult {
   isLoading: boolean;
   isSaving: boolean;
   isPortable: boolean;
-  appConfigDir?: string;
   resolvedDirs: ResolvedDirectories;
   requiresRestart: boolean;
   updateSettings: (updates: Partial<SettingsFormState>) => void;
   updateDirectory: (app: DirectoryAppId, value?: string) => void;
-  updateAppConfigDir: (value?: string) => void;
   browseDirectory: (app: DirectoryAppId) => Promise<void>;
-  browseAppConfigDir: () => Promise<void>;
   resetDirectory: (app: DirectoryAppId) => Promise<void>;
-  resetAppConfigDir: () => Promise<void>;
   saveSettings: (
     overrides?: Partial<SettingsFormState>,
     options?: { silent?: boolean },
@@ -81,16 +77,11 @@ export function useSettings(): UseSettingsResult {
 
   // 2️⃣ 目录管理
   const {
-    appConfigDir,
     resolvedDirs,
     isLoading: isDirectoryLoading,
-    initialAppConfigDir,
     updateDirectory,
-    updateAppConfigDir,
     browseDirectory,
-    browseAppConfigDir,
     resetDirectory,
-    resetAppConfigDir,
     resetAllDirectories,
   } = useDirectorySettings({
     settings,
@@ -324,7 +315,6 @@ export function useSettings(): UseSettingsResult {
       const mergedSettings = settings ? { ...settings, ...overrides } : null;
       if (!mergedSettings) return null;
       try {
-        const sanitizedAppDir = sanitizeDir(appConfigDir);
         const sanitizedClaudeDir = sanitizeDir(mergedSettings.claudeConfigDir);
         const sanitizedCodexDir = sanitizeDir(mergedSettings.codexConfigDir);
         const sanitizedGeminiDir = sanitizeDir(mergedSettings.geminiConfigDir);
@@ -336,7 +326,6 @@ export function useSettings(): UseSettingsResult {
           mergedSettings.openclawConfigDir,
         );
         const sanitizedPiDir = sanitizeDir(mergedSettings.piConfigDir);
-        const previousAppDir = initialAppConfigDir;
         const previousClaudeDir = sanitizeDir(data?.claudeConfigDir);
         const previousCodexDir = sanitizeDir(data?.codexConfigDir);
         const previousGeminiDir = sanitizeDir(data?.geminiConfigDir);
@@ -369,8 +358,6 @@ export function useSettings(): UseSettingsResult {
         ])?.enableClaudePluginIntegration;
 
         await saveMutation.mutateAsync(payload);
-
-        await settingsApi.setAppConfigDirOverride(sanitizedAppDir ?? null);
 
         // 只在开机自启状态真正改变时调用系统 API
         if (
@@ -468,8 +455,7 @@ export function useSettings(): UseSettingsResult {
           await invalidatePiDirectoryCaches(queryClient);
         }
 
-        const appDirChanged = sanitizedAppDir !== (previousAppDir ?? undefined);
-        setRequiresRestart(appDirChanged);
+        setRequiresRestart(false);
 
         if (!options?.silent) {
           toast.success(
@@ -480,7 +466,7 @@ export function useSettings(): UseSettingsResult {
           );
         }
 
-        return { requiresRestart: appDirChanged };
+        return { requiresRestart: false };
       } catch (error) {
         console.error("[useSettings] Failed to save settings", error);
         toast.error(
@@ -493,9 +479,7 @@ export function useSettings(): UseSettingsResult {
       }
     },
     [
-      appConfigDir,
       data,
-      initialAppConfigDir,
       queryClient,
       saveMutation,
       settings,
@@ -515,16 +499,12 @@ export function useSettings(): UseSettingsResult {
     isLoading,
     isSaving: saveMutation.isPending,
     isPortable,
-    appConfigDir,
     resolvedDirs,
     requiresRestart,
     updateSettings,
     updateDirectory,
-    updateAppConfigDir,
     browseDirectory,
-    browseAppConfigDir,
     resetDirectory,
-    resetAppConfigDir,
     saveSettings,
     autoSaveSettings,
     resetSettings,

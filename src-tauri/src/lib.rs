@@ -1,5 +1,4 @@
 mod app_config;
-mod app_store;
 mod auto_launch;
 mod claude_desktop_config;
 mod claude_mcp;
@@ -26,6 +25,7 @@ mod openclaw_config;
 mod opencode_config;
 mod panic_hook;
 mod pi_config;
+mod portable_window_state;
 mod prompt;
 mod prompt_files;
 mod provider;
@@ -80,7 +80,6 @@ use tauri::image::Image;
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::RunEvent;
 use tauri::{Emitter, Manager};
-use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
 #[cfg(target_os = "windows")]
 fn set_windows_app_user_model_id(app: &tauri::AppHandle) {
@@ -339,9 +338,41 @@ fn macos_tray_icon() -> Option<Image<'static>> {
     }
 }
 
+fn create_main_window(app_handle: &tauri::AppHandle) -> Result<tauri::WebviewWindow, AppError> {
+    portable_window_state::initialize(app_handle);
+
+    let window_config = app_handle
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|window_config| window_config.label == "main")
+        .ok_or_else(|| AppError::Config("主窗口配置未找到".to_string()))?;
+
+    let window_builder = tauri::WebviewWindowBuilder::from_config(app_handle, window_config)
+        .map_err(|error| AppError::Message(format!("加载主窗口配置失败: {error}")))?;
+
+    #[cfg(target_os = "windows")]
+    let window_builder = {
+        let webview_data_dir = crate::config::get_app_config_dir().join("webview");
+        std::fs::create_dir_all(&webview_data_dir)
+            .map_err(|error| AppError::io(&webview_data_dir, error))?;
+        window_builder.data_directory(webview_data_dir)
+    };
+
+    let window = window_builder
+        .build()
+        .map_err(|error| AppError::Message(format!("创建主窗口失败: {error}")))?;
+    if let Err(error) = portable_window_state::track_main_window(&window) {
+        log::warn!("初始化便携窗口状态失败，将继续使用默认窗口状态: {error}");
+    }
+    Ok(window)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // 设置 panic hook，在应用崩溃时记录日志到 <app_config_dir>/crash.log（默认 ~/.cc-switch/crash.log）
+    // 设置 panic hook，在应用崩溃时记录日志到 EXE 同级 data/crash.log。
+    panic_hook::init_app_config_dir(crate::config::get_app_config_dir());
     panic_hook::setup_panic_hook();
 
     let mut builder = tauri::Builder::default();
@@ -441,18 +472,14 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_store::Builder::new().build())
-        .plugin(
-            tauri_plugin_window_state::Builder::default()
-                .with_state_flags(window_state_flags())
-                .build(),
-        )
         .setup(|app| {
             let _ = rustls::crypto::ring::default_provider().install_default();
 
-            // 预先刷新 Store 覆盖配置，确保后续路径读取正确（日志/数据库等）
-            app_store::refresh_app_config_dir_override(app.handle());
-            panic_hook::init_app_config_dir(crate::config::get_app_config_dir());
+            #[cfg(target_os = "windows")]
+            set_windows_app_user_model_id(app.handle());
+
+            // tauri.conf 中禁用自动建窗，以便在创建 WebView2 前指定 EXE 同级 data/webview。
+            create_main_window(app.handle())?;
 
             // 初始化日志（输出到 <app_config_dir>/logs/cc-switch.log）
             {
@@ -494,13 +521,6 @@ pub fn run() {
                 log::set_max_level(log::LevelFilter::Info);
                 log::info!("=== CC Switch v{} started ===", env!("CARGO_PKG_VERSION"));
             }
-
-            // 首次读取覆盖路径时 logger 尚未可用；此处重放一次，
-            // 让 Store 损坏或路径无效等启动警告能够真正落盘。
-            let _ = app_store::refresh_app_config_dir_override(app.handle());
-
-            #[cfg(target_os = "windows")]
-            set_windows_app_user_model_id(app.handle());
 
             // 注册 Updater 插件（桌面端）；放在 logger 之后，确保失败可诊断。
             #[cfg(desktop)]
@@ -1003,11 +1023,6 @@ pub fn run() {
                 }
             }
 
-            // 迁移旧的 app_config_dir 配置到 Store
-            if let Err(e) = app_store::migrate_app_config_dir_from_settings(app.handle()) {
-                log::warn!("迁移 app_config_dir 失败: {e}");
-            }
-
             // 启动阶段不再无条件保存,避免意外覆盖用户配置。
 
             // 注册 deep-link URL 处理器（使用正确的 DeepLinkExt API）
@@ -1487,7 +1502,7 @@ pub fn run() {
             commands::add_custom_endpoint,
             commands::remove_custom_endpoint,
             commands::update_endpoint_last_used,
-            // app_config_dir override via Store
+            // 固定便携数据目录的兼容 IPC
             commands::get_app_config_dir_override,
             commands::set_app_config_dir_override,
             // provider sort order management
@@ -1714,11 +1729,29 @@ pub fn run() {
             commands::is_lightweight_mode,
         ]);
 
+    let mut context = tauri::generate_context!();
+    if let Some(main_window_config) = context
+        .config_mut()
+        .app
+        .windows
+        .iter_mut()
+        .find(|window_config| window_config.label == "main")
+    {
+        // 强制由 setup 手动创建主窗口，确保能在 WebView2 初始化前指定便携数据目录。
+        main_window_config.create = false;
+    }
+
     let app = builder
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while running tauri application");
 
     app.run(|app_handle, event| {
+        if matches!(&event, RunEvent::Exit) {
+            if let Err(error) = portable_window_state::save_cached(app_handle) {
+                log::error!("Tauri 退出前保存便携窗口状态失败: {error}");
+            }
+        }
+
         // 处理退出请求（所有平台）
         if let RunEvent::ExitRequested { api, code, .. } = &event {
             match classify_exit_request(*code) {
@@ -1734,13 +1767,8 @@ pub fn run() {
                 // Tauri 在 RunEvent::Exit 后用新二进制 re-exec（macOS 会按更新后的
                 // Info.plist 解析可执行名）。
                 //
-                // 绝不能复用下面的异步清理任务：该任务在 tokio 线程调 save_window_state，
-                // 持有 window-state 插件锁的同时向主线程查询窗口几何；而主线程此刻正在
-                // 退出事件循环，并在插件自带的 RunEvent::Exit 钩子里等待同一把锁——双方
-                // 互等造成进程永久卡死（更新已安装但应用冻结、不再重启，见 #3998）。
-                //
                 // 重启路径交还 Tauri 默认流程即可：
-                //   - 窗口状态：插件 Exit 钩子在主线程保存（同线程读取窗口几何，无死锁）
+                //   - 窗口状态：RunEvent::Exit 直接保存事件缓存，不再访问系统 AppData
                 //   - 托盘图标：Tauri 内部 cleanup_before_exit 清理，正常走 Drop
                 //   - 代理/Live 配置：无需恢复，重启后新实例立即接管并恢复代理状态
                 //   - 100ms 落盘等待：重启前的 DB 写入均为命令驱动、此刻已完成，
@@ -2235,17 +2263,13 @@ fn classify_exit_request(code: Option<i32>) -> ExitRequestAction {
 }
 
 // ============================================================
-// 在应用主动退出前显式持久化窗口状态
+// 在应用主动退出前显式持久化便携窗口状态
 // ============================================================
 
-fn window_state_flags() -> StateFlags {
-    StateFlags::POSITION | StateFlags::SIZE | StateFlags::MAXIMIZED
-}
-
 /// 当前应用的退出路径会拦截 `ExitRequested` 并最终直接 `std::process::exit(0)`，
-/// 这里需要在真正结束进程前手动落盘，避免 window-state 插件的默认退出钩子被绕过。
+/// 这里需要在真正结束进程前手动把窗口状态写入 EXE 同级 `data/`。
 pub fn save_window_state_before_exit(app_handle: &tauri::AppHandle) {
-    if let Err(err) = app_handle.save_window_state(window_state_flags()) {
+    if let Err(err) = portable_window_state::save(app_handle) {
         log::error!("退出前保存窗口状态失败: {err}");
     } else {
         log::info!("已在退出前保存窗口状态");

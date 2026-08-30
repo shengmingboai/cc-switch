@@ -15,7 +15,6 @@ type AppDirectoryKey =
   | "openclaw"
   | "hermes"
   | "pi";
-type DirectoryKey = "appConfig" | AppDirectoryKey;
 
 export interface ResolvedDirectories {
   appConfig: string;
@@ -64,19 +63,6 @@ const sanitizeDir = (value?: string | null): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
-const computeDefaultAppConfigDir = async (): Promise<string | undefined> => {
-  try {
-    const home = await homeDir();
-    return await join(home, ".cc-switch");
-  } catch (error) {
-    console.error(
-      "[useDirectorySettings] Failed to resolve default app config dir",
-      error,
-    );
-    return undefined;
-  }
-};
-
 const computeDefaultConfigDir = async (
   app: DirectoryAppId,
 ): Promise<string | undefined> => {
@@ -98,16 +84,11 @@ export interface UseDirectorySettingsProps {
 }
 
 export interface UseDirectorySettingsResult {
-  appConfigDir?: string;
   resolvedDirs: ResolvedDirectories;
   isLoading: boolean;
-  initialAppConfigDir?: string;
   updateDirectory: (app: DirectoryAppId, value?: string) => void;
-  updateAppConfigDir: (value?: string) => void;
   browseDirectory: (app: DirectoryAppId) => Promise<void>;
-  browseAppConfigDir: () => Promise<void>;
   resetDirectory: (app: DirectoryAppId) => Promise<void>;
-  resetAppConfigDir: () => Promise<void>;
   resetAllDirectories: (overrides?: ResolvedAppDirectoryOverrides) => void;
 }
 
@@ -118,7 +99,6 @@ export type ResolvedAppDirectoryOverrides = Partial<
 /**
  * useDirectorySettings - 目录管理
  * 负责：
- * - appConfigDir 状态
  * - resolvedDirs 状态
  * - 目录选择（browse）
  * - 目录重置
@@ -130,9 +110,6 @@ export function useDirectorySettings({
 }: UseDirectorySettingsProps): UseDirectorySettingsResult {
   const { t } = useTranslation();
 
-  const [appConfigDir, setAppConfigDir] = useState<string | undefined>(
-    undefined,
-  );
   const [resolvedDirs, setResolvedDirs] = useState<ResolvedDirectories>({
     appConfig: "",
     claude: "",
@@ -157,7 +134,6 @@ export function useDirectorySettings({
     hermes: "",
     pi: "",
   });
-  const initialAppConfigDirRef = useRef<string | undefined>(undefined);
 
   // 加载目录信息
   useEffect(() => {
@@ -176,7 +152,6 @@ export function useDirectorySettings({
           openclawDir,
           hermesDir,
           piDir,
-          defaultAppConfig,
           defaultClaudeDir,
           defaultCodexDir,
           defaultGeminiDir,
@@ -195,7 +170,6 @@ export function useDirectorySettings({
           settingsApi.getConfigDir("openclaw"),
           settingsApi.getConfigDir("hermes"),
           settingsApi.getConfigDir("pi"),
-          computeDefaultAppConfigDir(),
           computeDefaultConfigDir("claude"),
           computeDefaultConfigDir("codex"),
           computeDefaultConfigDir("gemini"),
@@ -208,10 +182,10 @@ export function useDirectorySettings({
 
         if (!active) return;
 
-        const normalizedOverride = sanitizeDir(overrideRaw ?? undefined);
+        const fixedAppConfigDir = sanitizeDir(overrideRaw ?? undefined) ?? "";
 
         defaultsRef.current = {
-          appConfig: defaultAppConfig ?? "",
+          appConfig: fixedAppConfigDir,
           claude: defaultClaudeDir ?? "",
           codex: defaultCodexDir ?? "",
           gemini: defaultGeminiDir ?? "",
@@ -222,11 +196,8 @@ export function useDirectorySettings({
           pi: defaultPiDir ?? "",
         };
 
-        setAppConfigDir(normalizedOverride);
-        initialAppConfigDirRef.current = normalizedOverride;
-
         setResolvedDirs({
-          appConfig: normalizedOverride ?? defaultsRef.current.appConfig,
+          appConfig: fixedAppConfigDir,
           claude: claudeDir || defaultsRef.current.claude,
           codex: codexDir || defaultsRef.current.codex,
           gemini: geminiDir || defaultsRef.current.gemini,
@@ -255,15 +226,11 @@ export function useDirectorySettings({
   }, []);
 
   const updateDirectoryState = useCallback(
-    (key: DirectoryKey, value?: string) => {
+    (key: AppDirectoryKey, value?: string) => {
       const sanitized = sanitizeDir(value);
-      if (key === "appConfig") {
-        setAppConfigDir(sanitized);
-      } else {
-        onUpdateSettings({
-          [DIRECTORY_KEY_TO_SETTINGS_FIELD[key]]: sanitized,
-        });
-      }
+      onUpdateSettings({
+        [DIRECTORY_KEY_TO_SETTINGS_FIELD[key]]: sanitized,
+      });
 
       setResolvedDirs((prev) => {
         const next = sanitized ?? defaultsRef.current[key];
@@ -274,13 +241,6 @@ export function useDirectorySettings({
       });
     },
     [onUpdateSettings],
-  );
-
-  const updateAppConfigDir = useCallback(
-    (value?: string) => {
-      updateDirectoryState("appConfig", value);
-    },
-    [updateDirectoryState],
   );
 
   const updateDirectory = useCallback(
@@ -314,26 +274,6 @@ export function useDirectorySettings({
     [settings, resolvedDirs, t, updateDirectoryState],
   );
 
-  const browseAppConfigDir = useCallback(async () => {
-    const currentValue = appConfigDir ?? resolvedDirs.appConfig;
-    try {
-      const picked = await settingsApi.selectConfigDirectory(currentValue);
-      const sanitized = sanitizeDir(picked ?? undefined);
-      if (!sanitized) return;
-      updateDirectoryState("appConfig", sanitized);
-    } catch (error) {
-      console.error(
-        "[useDirectorySettings] Failed to pick app config directory",
-        error,
-      );
-      toast.error(
-        t("settings.selectFileFailed", {
-          defaultValue: "选择目录失败",
-        }),
-      );
-    }
-  }, [appConfigDir, resolvedDirs.appConfig, t, updateDirectoryState]);
-
   const resetDirectory = useCallback(
     async (app: DirectoryAppId) => {
       const key = APP_DIRECTORY_META[app].key;
@@ -351,25 +291,10 @@ export function useDirectorySettings({
     [updateDirectoryState],
   );
 
-  const resetAppConfigDir = useCallback(async () => {
-    if (!defaultsRef.current.appConfig) {
-      const fallback = await computeDefaultAppConfigDir();
-      if (fallback) {
-        defaultsRef.current = {
-          ...defaultsRef.current,
-          appConfig: fallback,
-        };
-      }
-    }
-    updateDirectoryState("appConfig", undefined);
-  }, [updateDirectoryState]);
-
   const resetAllDirectories = useCallback(
     (overrides?: ResolvedAppDirectoryOverrides) => {
-      setAppConfigDir(initialAppConfigDirRef.current);
       setResolvedDirs({
-        appConfig:
-          initialAppConfigDirRef.current ?? defaultsRef.current.appConfig,
+        appConfig: defaultsRef.current.appConfig,
         claude: overrides?.claude ?? defaultsRef.current.claude,
         codex: overrides?.codex ?? defaultsRef.current.codex,
         gemini: overrides?.gemini ?? defaultsRef.current.gemini,
@@ -384,16 +309,11 @@ export function useDirectorySettings({
   );
 
   return {
-    appConfigDir,
     resolvedDirs,
     isLoading,
-    initialAppConfigDir: initialAppConfigDirRef.current,
     updateDirectory,
-    updateAppConfigDir,
     browseDirectory,
-    browseAppConfigDir,
     resetDirectory,
-    resetAppConfigDir,
     resetAllDirectories,
   };
 }

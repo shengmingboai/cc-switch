@@ -58,51 +58,31 @@ describe("useSettingsForm Hook", () => {
     expect(changeLanguageSpy).toHaveBeenCalledWith("en");
   });
 
-  it("should support japanese language preference from server data", async () => {
-    useSettingsQueryMock.mockReturnValue({
-      data: {
-        showInTray: true,
-        minimizeToTrayOnClose: true,
-        enableClaudePluginIntegration: false,
-        claudeConfigDir: "/Users/demo",
-        codexConfigDir: null,
-        language: "ja",
-      },
-      isLoading: false,
-    });
+  it.each(["ja", "zh-Hant", "zh-TW"])(
+    "should normalize removed language preference %s to simplified chinese",
+    async (language) => {
+      useSettingsQueryMock.mockReturnValue({
+        data: {
+          showInTray: true,
+          minimizeToTrayOnClose: true,
+          enableClaudePluginIntegration: false,
+          claudeConfigDir: "/Users/demo",
+          codexConfigDir: null,
+          language,
+        },
+        isLoading: false,
+      });
 
-    const { result } = renderHook(() => useSettingsForm());
+      const { result } = renderHook(() => useSettingsForm());
 
-    await waitFor(() => {
-      expect(result.current.settings?.language).toBe("ja");
-    });
+      await waitFor(() => {
+        expect(result.current.settings?.language).toBe("zh");
+      });
 
-    expect(result.current.initialLanguage).toBe("ja");
-    expect(changeLanguageSpy).toHaveBeenCalledWith("ja");
-  });
-
-  it("should support traditional chinese language preference aliases", async () => {
-    useSettingsQueryMock.mockReturnValue({
-      data: {
-        showInTray: true,
-        minimizeToTrayOnClose: true,
-        enableClaudePluginIntegration: false,
-        claudeConfigDir: "/Users/demo",
-        codexConfigDir: null,
-        language: "zh-Hant",
-      },
-      isLoading: false,
-    });
-
-    const { result } = renderHook(() => useSettingsForm());
-
-    await waitFor(() => {
-      expect(result.current.settings?.language).toBe("zh-TW");
-    });
-
-    expect(result.current.initialLanguage).toBe("zh-TW");
-    expect(changeLanguageSpy).toHaveBeenCalledWith("zh-TW");
-  });
+      expect(result.current.initialLanguage).toBe("zh");
+      expect(changeLanguageSpy).not.toHaveBeenCalled();
+    },
+  );
 
   it("should prioritize reading language from local storage in readPersistedLanguage", () => {
     useSettingsQueryMock.mockReturnValue({
