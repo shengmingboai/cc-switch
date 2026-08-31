@@ -1130,7 +1130,7 @@ impl CodexOAuthManager {
 
     fn ambiguous_live_refresh_error(account_id: &str) -> CodexOAuthError {
         CodexOAuthError::TokenFetchFailed(format!(
-            "Codex CLI 账号 {account_id} 的磁盘凭据已变化，但无法安全判断 refresh token 新旧；为避免覆盖或删除有效登录，本次操作已取消。请先在认证中心重新登录该账号；若仍失败，请移除后重新登录"
+            "Codex CLI 账号 {account_id} 的磁盘凭据已变化，但无法安全判断 refresh token 新旧；为避免覆盖或删除有效登录，本次操作已取消。请先在对应供应商表单中重新登录该账号；若仍失败，请移除后重新登录"
         ))
     }
 
@@ -1364,7 +1364,7 @@ impl CodexOAuthManager {
                 .clone()
         };
 
-        // Explicit Auth Center removal means credentials for this managed
+        // Explicit managed OAuth removal means credentials for this managed
         // account must leave the machine. Content matching intentionally also
         // claims a native `codex login` of the same account; that is the same
         // account-scoped credential the user just chose to remove.

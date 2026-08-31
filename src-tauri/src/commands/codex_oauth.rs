@@ -15,7 +15,7 @@ use tauri::State;
 ///
 /// `CodexOAuthManager` 内部已使用细粒度锁且所有方法均为 `&self`，因此这里
 /// 直接持有 `Arc`，不再包一层 `RwLock`——避免任一命令持有粗粒度锁跨网络刷新
-/// 时阻塞其他命令（切换 / 认证中心操作 / token 读取）。
+/// 时阻塞其他命令（切换 / 托管 OAuth 操作 / token 读取）。
 pub struct CodexOAuthState(pub Arc<CodexOAuthManager>);
 
 /// 查询 Codex OAuth (ChatGPT Plus/Pro) 订阅额度

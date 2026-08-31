@@ -17,31 +17,14 @@ English | [中文](README_ZH.md) | [Changelog](CHANGELOG.md)
 
 </div>
 
-## ❤️Sponsor
-
-> [Want to appear here?](https://github.com/shengmingboai/cc-switch/issues)
-
-<details open>
-<summary>Click to collapse</summary>
-
-[![Kimi K2.7 Code](https://gcdn.moonshot.cn/growth-cdn/sponsor/kimi-en.png)](https://platform.kimi.ai?track_id=track-20d65732f0aa45dcb1df9691a15610af&aff=cc-switch)
-
-Kimi K3 is Moonshot AI's most capable model and the world's first open 3T-class model. With 2.8 trillion parameters, native vision, and a 1-million-token context window, K3 delivers frontier performance across long-horizon coding, knowledge work, and reasoning. CC Switch makes it easy to configure and switch to Kimi across agentic tools. **[Click here to start using Kimi](https://platform.kimi.ai?track_id=track-20d65732f0aa45dcb1df9691a15610af&aff=cc-switch)**
-
-**New user top-up bonus**: register via [this link](https://platform.kimi.ai?track_id=track-20d65732f0aa45dcb1df9691a15610af&aff=cc-switch) and complete your first top-up to receive 10% of the amount as bonus API credit, up to CNY ¥1,000.
-
-Doing mostly coding work? Try the **[Kimi Code subscription](https://www.kimi.com/code/?aff=cc-switch)**.
-
----
-
 ## Why CC Switch?
 
 Modern AI-powered coding relies on tools like Claude Code, Claude Desktop, Codex, Grok Build, OpenCode, and Pi — but each has its own configuration format. Switching API providers means manually editing JSON, TOML, or `.env` files, and there is no unified way to manage MCP and Skills across multiple tools.
 
-**CC Switch** gives you a single desktop app to manage all supported AI tools. Instead of editing config files by hand, you get a visual interface to import providers with one click, switch between them instantly, with 50+ built-in provider presets, unified MCP and Skills management, and system tray quick switching — all backed by a reliable SQLite database with atomic writes that protect your configs from corruption.
+**CC Switch** gives you a single desktop app to manage all supported AI tools. Instead of editing config files by hand, you get a visual interface to import providers with one click, switch between them instantly, with curated built-in provider presets, unified MCP and Skills management, and system tray quick switching — all backed by a reliable SQLite database with atomic writes that protect your configs from corruption.
 
 - **One App, Six Tools** — Manage Claude Code, Claude Desktop, Codex, Grok Build, OpenCode, and Pi from a single interface
-- **No More Manual Editing** — 50+ provider presets including AWS Bedrock, NVIDIA NIM, and community relays; just pick and switch
+- **No More Manual Editing** — Curated provider presets including AWS Bedrock and NVIDIA NIM; just pick and switch
 - **Unified MCP & Skills Management** — One panel to manage MCP servers and Skills across Claude, Codex, Grok Build, and OpenCode with bidirectional sync
 - **System Tray Quick Switch** — Switch providers instantly from the tray menu, no need to open the full app
 - **Cloud Sync** — Sync provider data across devices via Dropbox, OneDrive, iCloud, or WebDAV servers
@@ -60,7 +43,7 @@ Modern AI-powered coding relies on tools like Claude Code, Claude Desktop, Codex
 
 ### Provider Management
 
-- **6 supported tools, 50+ presets** — Claude Code, Claude Desktop, Codex, Grok Build, OpenCode, Pi; copy your key and import with one click
+- **6 supported tools with built-in presets** — Claude Code, Claude Desktop, Codex, Grok Build, OpenCode, Pi; copy your key and import with one click
 - **Universal providers** — One config syncs to Claude Code and Codex
 - One-click switching, system tray quick access, drag-and-drop sorting, import/export
 
@@ -401,7 +384,7 @@ pnpm test:unit --coverage
 │       ├── deeplink/           # Deep Link handling
 │       └── mcp/                # MCP sync module
 ├── tests/                      # Frontend tests
-└── assets/                     # Screenshots & partner resources
+└── assets/                     # Screenshots & static resources
 ```
 
 </details>

@@ -10,8 +10,7 @@ const expectedChatPresets = new Map<
   string,
   { baseUrl: string; contextWindows: Record<string, number> }
 >([
-  // 火山 Agent Plan / Coding Plan 与 BytePlus 国际站（coding/v3）均已切
-  // 原生 Responses，见下方 native 清单
+  // 仅验证仍保留的 Chat Completions 供应商。
   [
     "Zhipu GLM",
     {
@@ -67,60 +66,10 @@ const expectedChatPresets = new Map<
     },
   ],
   [
-    "StepFun",
-    {
-      baseUrl: "https://api.stepfun.com/step_plan/v1",
-      contextWindows: {
-        "step-3.7-flash": 262144,
-        "step-3.5-flash-2603": 262144,
-        "step-3.5-flash": 262144,
-      },
-    },
-  ],
-  [
-    "StepFun en",
-    {
-      baseUrl: "https://api.stepfun.ai/step_plan/v1",
-      contextWindows: {
-        "step-3.7-flash": 262144,
-        "step-3.5-flash-2603": 262144,
-        "step-3.5-flash": 262144,
-      },
-    },
-  ],
-  [
-    "ModelScope",
-    {
-      baseUrl: "https://api-inference.modelscope.cn/v1",
-      contextWindows: { "ZhipuAI/GLM-5.2": 200000 },
-    },
-  ],
-  [
     "BaiLing",
     {
       baseUrl: "https://api.tbox.cn/api/llm/v1",
       contextWindows: { "Ling-2.6-1T": 262144 },
-    },
-  ],
-  [
-    "SiliconFlow",
-    {
-      baseUrl: "https://api.siliconflow.cn/v1",
-      contextWindows: { "Pro/MiniMaxAI/MiniMax-M2.5": 196608 },
-    },
-  ],
-  [
-    "SiliconFlow en",
-    {
-      baseUrl: "https://api.siliconflow.com/v1",
-      contextWindows: { "MiniMaxAI/MiniMax-M3": 1048576 },
-    },
-  ],
-  [
-    "Novita AI",
-    {
-      baseUrl: "https://api.novita.ai/openai/v1",
-      contextWindows: { "zai-org/glm-5.1": 202800 },
     },
   ],
   [
@@ -170,16 +119,6 @@ describe("Codex Chat provider presets", () => {
       string,
       { contextWindows: Record<string, number> }
     >([
-      // 官方 Codex 文档确认 Agent Plan /api/plan/v3 与 Coding Plan
-      // /api/coding/v3 均支持 Responses API；BytePlus 国际站 coding/v3
-      // 同（docs.byteplus.com/en/docs/ModelArk/2556056，2026-08-15 核实）
-      ["火山 Agent Plan", { contextWindows: { "ark-code-latest": 256000 } }],
-      ["火山 Coding Plan", { contextWindows: { "ark-code-latest": 256000 } }],
-      ["BytePlus", { contextWindows: { "ark-code-latest": 256000 } }],
-      [
-        "DouBaoSeed",
-        { contextWindows: { "doubao-seed-2-1-pro-260628": 262144 } },
-      ],
       ["Bailian", { contextWindows: { "qwen3-coder-plus": 1048576 } }],
       // 腾讯 TokenHub 官方 Codex 文档确认 hy3 原生 Responses（2026-07-14）
       [
@@ -197,7 +136,6 @@ describe("Codex Chat provider presets", () => {
           },
         },
       ],
-      ["Longcat", { contextWindows: { "LongCat-2.0": 1048576 } }],
       ["MiniMax", { contextWindows: { "MiniMax-M3": 1000000 } }],
       ["MiniMax en", { contextWindows: { "MiniMax-M3": 1000000 } }],
       [

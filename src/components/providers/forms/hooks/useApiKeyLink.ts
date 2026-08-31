@@ -52,30 +52,19 @@ export function useApiKeyLink({
   }, [selectedPresetId, presetEntries]);
 
   // 获取当前供应商的网址（用于 API Key 链接）
-  const getWebsiteUrl = useMemo(() => {
-    if (currentPresetEntry) {
-      const preset = currentPresetEntry.preset;
-      // 对于 cn_official、aggregator、third_party，优先使用 apiKeyUrl（可能包含推广参数）
-      if (
-        preset.category === "cn_official" ||
-        preset.category === "aggregator" ||
-        preset.category === "third_party"
-      ) {
-        return preset.apiKeyUrl || preset.websiteUrl || "";
-      }
-      return preset.websiteUrl || "";
+  const websiteUrl = useMemo(() => {
+    if (!currentPresetEntry) return formWebsiteUrl || "";
+
+    const preset = currentPresetEntry.preset;
+    if (
+      preset.category === "cn_official" ||
+      preset.category === "aggregator" ||
+      preset.category === "third_party"
+    ) {
+      return preset.apiKeyUrl || preset.websiteUrl || "";
     }
-    return formWebsiteUrl || "";
+    return preset.websiteUrl || "";
   }, [currentPresetEntry, formWebsiteUrl]);
-
-  // 提取合作伙伴信息
-  const isPartner = useMemo(() => {
-    return currentPresetEntry?.preset.isPartner ?? false;
-  }, [currentPresetEntry]);
-
-  const partnerPromotionKey = useMemo(() => {
-    return currentPresetEntry?.preset.partnerPromotionKey;
-  }, [currentPresetEntry]);
 
   return {
     shouldShowApiKeyLink:
@@ -85,8 +74,6 @@ export function useApiKeyLink({
       appId === "opencode"
         ? shouldShowApiKeyLink
         : false,
-    websiteUrl: getWebsiteUrl,
-    isPartner,
-    partnerPromotionKey,
+    websiteUrl,
   };
 }

@@ -315,7 +315,7 @@ fn test_deeplink_usage_script_honors_an_explicit_enable_request_from_the_link() 
 
     // `usageEnabled=true` 是**链接作者**的请求，不是用户的选择——用户的同意体现在
     // 看过确认框里完整的脚本正文与启用状态之后点了导入。收紧默认值不能顺手把这条
-    // 正常通路改坏：合作伙伴的预设链接靠它一次性配好用量查询。
+    // 正常通路改坏：预设链接靠它一次性配好用量查询。
     let code = "export async function query() { return { cost: 0 }; }";
     let request = usage_script_request(code, Some(true));
 

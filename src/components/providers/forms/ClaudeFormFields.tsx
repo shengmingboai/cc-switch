@@ -53,7 +53,6 @@ import type {
   ClaudeApiFormat,
   ClaudeApiKeyField,
 } from "@/types";
-import type { ManagedAuthProvider } from "@/lib/api";
 import {
   hasClaudeOneMMarker,
   setClaudeOneMMarker,
@@ -78,8 +77,6 @@ interface ClaudeFormFieldsProps {
   category?: ProviderCategory;
   shouldShowApiKeyLink: boolean;
   websiteUrl: string;
-  isPartner?: boolean;
-  partnerPromotionKey?: string;
 
   // GitHub Copilot OAuth
   isCopilotPreset?: boolean;
@@ -89,9 +86,6 @@ interface ClaudeFormFieldsProps {
   selectedGitHubAccountId?: string | null;
   /** GitHub 账号选择回调（多账号支持） */
   onGitHubAccountSelect?: (accountId: string | null) => void;
-  /** 打开托管账号管理入口 */
-  onManageAuthAccounts?: (target: ManagedAuthProvider) => void;
-
   // Codex OAuth (ChatGPT Plus/Pro)
   isCodexOauthPreset?: boolean;
   isCodexOauthAuthenticated?: boolean;
@@ -169,14 +163,11 @@ export function ClaudeFormFields({
   category,
   shouldShowApiKeyLink,
   websiteUrl,
-  isPartner,
-  partnerPromotionKey,
   isCopilotPreset,
   usesOAuth,
   isCopilotAuthenticated,
   selectedGitHubAccountId,
   onGitHubAccountSelect,
-  onManageAuthAccounts,
   isCodexOauthPreset,
   isCodexOauthAuthenticated,
   selectedCodexAccountId,
@@ -651,28 +642,18 @@ export function ClaudeFormFields({
       {/* GitHub Copilot OAuth 认证 */}
       {isCopilotPreset && (
         <CopilotAuthSection
-          mode="select"
+          mode="manage"
           selectedAccountId={selectedGitHubAccountId}
           onAccountSelect={onGitHubAccountSelect}
-          onManageAccounts={
-            onManageAuthAccounts
-              ? () => onManageAuthAccounts("github_copilot")
-              : undefined
-          }
         />
       )}
 
       {/* Codex OAuth 认证 (ChatGPT Plus/Pro) */}
       {isCodexOauthPreset && (
         <CodexOAuthSection
-          mode="select"
+          mode="manage"
           selectedAccountId={selectedCodexAccountId}
           onAccountSelect={onCodexAccountSelect}
-          onManageAccounts={
-            onManageAuthAccounts
-              ? () => onManageAuthAccounts("codex_oauth")
-              : undefined
-          }
           fastModeEnabled={codexFastMode}
           onFastModeChange={onCodexFastModeChange}
         />
@@ -693,8 +674,6 @@ export function ClaudeFormFields({
           category={category}
           shouldShowLink={shouldShowApiKeyLink}
           websiteUrl={websiteUrl}
-          isPartner={isPartner}
-          partnerPromotionKey={partnerPromotionKey}
         />
       )}
 

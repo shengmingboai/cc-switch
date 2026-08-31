@@ -61,7 +61,6 @@ import type {
   PromptCacheRoutingMode,
   ProviderCategory,
 } from "@/types";
-import type { ManagedAuthProvider } from "@/lib/api";
 import type { AppId } from "@/lib/api";
 
 interface EndpointCandidate {
@@ -82,14 +81,11 @@ interface CodexFormFieldsProps {
   category?: ProviderCategory;
   shouldShowApiKeyLink: boolean;
   websiteUrl: string;
-  isPartner?: boolean;
-  partnerPromotionKey?: string;
   isCodexOauthPreset?: boolean;
   selectedCodexAccountId?: string | null;
   onCodexAccountSelect?: (accountId: string | null) => void;
   onCodexAuthSelectionConfirmed?: () => void;
   onCodexAuthSelectionInvalidated?: () => void;
-  onManageAuthAccounts?: (target: ManagedAuthProvider) => void;
   codexOauthSelectionLabel?: string;
   codexOauthNoneOptionLabel?: string;
   codexOauthNoneOptionDescription?: string;
@@ -376,14 +372,11 @@ export function CodexFormFields({
   category,
   shouldShowApiKeyLink,
   websiteUrl,
-  isPartner,
-  partnerPromotionKey,
   isCodexOauthPreset = false,
   selectedCodexAccountId,
   onCodexAccountSelect,
   onCodexAuthSelectionConfirmed,
   onCodexAuthSelectionInvalidated,
-  onManageAuthAccounts,
   codexOauthSelectionLabel,
   codexOauthNoneOptionLabel,
   codexOauthNoneOptionDescription,
@@ -722,16 +715,11 @@ export function CodexFormFields({
       {/* Codex OAuth 账号选择 */}
       {isCodexOauthPreset && (
         <CodexOAuthSection
-          mode="select"
+          mode="manage"
           selectedAccountId={selectedCodexAccountId}
           onAccountSelect={onCodexAccountSelect}
           onSelectionConfirmed={onCodexAuthSelectionConfirmed}
           onSelectionInvalidated={onCodexAuthSelectionInvalidated}
-          onManageAccounts={
-            onManageAuthAccounts
-              ? () => onManageAuthAccounts("codex_oauth")
-              : undefined
-          }
           selectionLabel={codexOauthSelectionLabel}
           noneOptionLabel={codexOauthNoneOptionLabel}
           noneOptionDescription={codexOauthNoneOptionDescription}
@@ -762,8 +750,6 @@ export function CodexFormFields({
           category={category}
           shouldShowLink={shouldShowApiKeyLink}
           websiteUrl={websiteUrl}
-          isPartner={isPartner}
-          partnerPromotionKey={partnerPromotionKey}
           placeholder={{
             official: t("providerForm.codexOfficialNoApiKey", {
               defaultValue: "官方供应商无需 API Key",

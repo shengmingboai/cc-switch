@@ -37,20 +37,9 @@ describe("Codex preset pre-filled reasoning levels", () => {
   // 第四位=期望的显式 defaultReasoningLevel：仅在官方默认 ≠ 后端回落结果时
   // 声明（后端回落=模板默认 ∈ 子集则保留、否则取子集最高档），其余一律留空
   const EXPECTED: Array<[string, string, string[], string?]> = [
-    // 火山官方 Codex 接入文档四份一致：low/medium/high
-    ["火山 Agent Plan", "ark-code-latest", ["low", "medium", "high"]],
-    ["火山 Coding Plan", "ark-code-latest", ["low", "medium", "high"]],
-    // 方舟深度思考文档：本模型无限制的通用四档（minimal=关思考直接回答）
-    [
-      "DouBaoSeed",
-      "doubao-seed-2-1-pro-260628",
-      ["minimal", "low", "medium", "high"],
-    ],
     // 混元官方枚举 low/high；hy3 开源 chat template 对其他值直接 raise
     ["Tencent Hunyuan", "hy3", ["low", "high"]],
     ["Tencent Hunyuan", "hy3-preview", ["low", "high"]],
-    // LongCat 无档位可调：全站唯一 effort 证据=官方示例的 high
-    ["Longcat", "LongCat-2.0", ["high"]],
     // xAI Reasoning guide 模型级枚举；grok-4.5 不可关思考故无 none
     ["xAI (Grok)", "grok-4.5", ["low", "medium", "high"]],
     ["xAI (Grok) OAuth", "grok-4.5", ["low", "medium", "high"]],
@@ -69,11 +58,6 @@ describe("Codex preset pre-filled reasoning levels", () => {
     // 等价开思考；只暴露两态，顺带补上模板四档里缺失的 none（关思考入口）
     ["Zhipu GLM", "glm-5.2", ["none", "high"]],
     ["Zhipu GLM en", "glm-5.2", ["none", "high"]],
-    // SiliconFlow .com 的 M3：平台级 enable_thinking 布尔开关（后端按平台
-    // 推断兜底），M3 官方可关思考 → 两态
-    ["SiliconFlow en", "MiniMaxAI/MiniMax-M3", ["none", "high"]],
-    // Novita：平台真开关 enable_thinking（声明已修正方言）→ 两态
-    ["Novita AI", "zai-org/glm-5.1", ["none", "high"]],
     // 千帆 v2 官方 thinking:{type}（声明已补）→ 两态
     ["Baidu Qianfan Coding Plan", "qianfan-code-latest", ["none", "high"]],
     // 千帆 Token Plan：deepseek-v4-pro/v4-flash 在 thinking+reasoning_effort
@@ -83,16 +67,6 @@ describe("Codex preset pre-filled reasoning levels", () => {
     ["Baidu Qianfan Token Plan", "deepseek-v4-pro", ["none", "high", "max"]],
     ["Baidu Qianfan Token Plan", "deepseek-v4-flash", ["none", "high", "max"]],
     ["Baidu Qianfan Token Plan", "glm-5.1", ["none", "high"]],
-    // BytePlus 国际站已切原生 Responses，档位=官方 Codex 文档三档（与国内
-    // 站火山双 Plan 同源交叉印证）
-    ["BytePlus", "ark-code-latest", ["low", "medium", "high"]],
-    // StepFun 官方两站模型页+reasoning 指南：3.7-flash 三档（默认 medium）、
-    // 2603 两档；全系无关思考形态故无 none。effort 下发走后端 per-model
-    // 推断（2603=low_high、3.7=passthrough）
-    ["StepFun", "step-3.7-flash", ["low", "medium", "high"]],
-    ["StepFun", "step-3.5-flash-2603", ["low", "high"]],
-    ["StepFun en", "step-3.7-flash", ["low", "medium", "high"]],
-    ["StepFun en", "step-3.5-flash-2603", ["low", "high"]],
     // Kimi 开放平台：k2.7-code 始终思考且官方标注不支持 effort → 单档；k3
     // 三档（官方默认 max=后端回落结果，无需显式 default）。均关不掉思考无 none
     ["Kimi", "kimi-k2.7-code", ["high"]],
@@ -130,18 +104,12 @@ describe("Codex preset pre-filled reasoning levels", () => {
     // toggle/未收录模型保持不填：glm-5.1 是 toggle 型（models.dev 无 effort
     // 声明）、kimi-k2.7-code 官方标注不支持 effort、mimo-v2.5-pro 未收录
     // models.dev——与 opencode 客户端一致（代理侧无表不发 reasoning_effort
-    // 字段）。SiliconFlow .cn 的 M2.5 能否真正关思考无官方明文、ModelScope
-    // 是否透传思考字段未证实——真机验证前不造两态假开关（2026-08-15 盘点结论）
+    // 字段）。真机验证前不造两态假开关（2026-08-15 盘点结论）
     const UNFILLED: Array<[string, string]> = [
       ["Bailian", "qwen3-coder-plus"],
       ["OpenCode Go", "glm-5.1"],
       ["OpenCode Go", "kimi-k2.7-code"],
       ["OpenCode Go", "mimo-v2.5-pro"],
-      ["SiliconFlow", "Pro/MiniMaxAI/MiniMax-M2.5"],
-      ["ModelScope", "ZhipuAI/GLM-5.2"],
-      // StepFun 无后缀 3.5-flash：官方未暴露 effort，单一常开思考态
-      ["StepFun", "step-3.5-flash"],
-      ["StepFun en", "step-3.5-flash"],
       // Nvidia NIM：无思考开关（真参数 chat_template_kwargs 不在值域），
       // 声明已改 thinkingParam:none 撤销假开关
       ["Nvidia", "moonshotai/kimi-k2.5"],

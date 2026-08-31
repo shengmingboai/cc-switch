@@ -251,15 +251,6 @@ describe("flattenModels", () => {
           },
         },
       },
-      longcat: {
-        name: "LongCat",
-        models: {
-          "LongCat-2.0": {
-            release_date: "2026-03-01",
-            cost: { input: 0.4, output: 1.6 },
-          },
-        },
-      },
     });
 
     const common = getCommonModelKeys(entries);
@@ -271,7 +262,6 @@ describe("flattenModels", () => {
     expect(common.has("deepseek/deepseek-chat")).toBe(true);
     expect(common.has("xiaomi/mimo-v2.5")).toBe(true);
     expect(common.has("xiaomi/mimo-v2.5-tts")).toBe(false);
-    expect(common.has("longcat/LongCat-2.0")).toBe(true);
   });
 
   it("combines common and explicit selections and deduplicates normalized ids", () => {

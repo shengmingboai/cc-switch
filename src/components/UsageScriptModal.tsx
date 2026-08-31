@@ -144,14 +144,7 @@ const TEMPLATE_NAME_KEYS: Record<string, string> = {
 /** 官方余额查询供应商检测 */
 const BALANCE_PROVIDERS = [
   { id: "deepseek", label: "DeepSeek", pattern: /api\.deepseek\.com/i },
-  { id: "stepfun", label: "StepFun", pattern: /api\.stepfun\.(ai|com)/i },
-  {
-    id: "siliconflow",
-    label: "SiliconFlow",
-    pattern: /api\.siliconflow\.(cn|com)/i,
-  },
   { id: "openrouter", label: "OpenRouter", pattern: /openrouter\.ai/i },
-  { id: "novita", label: "Novita AI", pattern: /api\.novita\.ai/i },
 ] as const;
 
 /** 根据 Base URL 自动检测余额查询供应商 */

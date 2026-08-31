@@ -73,6 +73,30 @@ fn remove_legacy_provider_ids_from_profile(
     providers.remove(app).is_some()
 }
 
+fn remove_legacy_partner_metadata(value: &mut serde_json::Value) -> bool {
+    match value {
+        serde_json::Value::Object(object) => {
+            let mut changed = false;
+            for key in [
+                "isPartner",
+                "primePartner",
+                "partnerPromotionKey",
+                "is_partner",
+                "prime_partner",
+                "partner_promotion_key",
+            ] {
+                changed |= object.remove(key).is_some();
+            }
+            for child in object.values_mut() {
+                changed |= remove_legacy_partner_metadata(child);
+            }
+            changed
+        }
+        serde_json::Value::Array(items) => items.iter_mut().any(remove_legacy_partner_metadata),
+        _ => false,
+    }
+}
+
 impl Database {
     /// 创建所有数据库表
     pub(crate) fn create_tables(&self) -> Result<(), AppError> {
@@ -606,6 +630,11 @@ impl Database {
                         log::info!("迁移数据库从 v19 到 v20（移除 Gemini 遗留数据）");
                         Self::migrate_v19_to_v20(conn)?;
                         Self::set_user_version(conn, 20)?;
+                    }
+                    20 => {
+                        log::info!("迁移数据库从 v20 到 v21（移除供应商推广元数据）");
+                        Self::migrate_v20_to_v21(conn)?;
+                        Self::set_user_version(conn, 21)?;
                     }
                     _ => {
                         return Err(AppError::Database(format!(
@@ -2055,6 +2084,95 @@ impl Database {
                     [],
                 )
                 .map_err(|e| AppError::Database(e.to_string()))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// v20 -> v21: 清理已移除的供应商推广元数据
+    ///
+    /// 旧版本可能在 provider、Profile 或统一供应商快照中保存合作伙伴展示字段。
+    /// 这些字段不再属于数据模型，升级时只移除元数据，不删除用户的供应商配置。
+    fn migrate_v20_to_v21(conn: &Connection) -> Result<(), AppError> {
+        if Self::table_exists(conn, "providers")?
+            && Self::has_column(conn, "providers", "id")?
+            && Self::has_column(conn, "providers", "app_type")?
+            && Self::has_column(conn, "providers", "meta")?
+        {
+            let rows: Vec<(String, String, String)> = conn
+                .prepare("SELECT id, app_type, meta FROM providers")?
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| AppError::Database(e.to_string()))?;
+
+            for (provider_id, app_type, meta_json) in rows {
+                let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&meta_json) else {
+                    continue;
+                };
+                if !remove_legacy_partner_metadata(&mut value) {
+                    continue;
+                }
+                let updated =
+                    serde_json::to_string(&value).map_err(|e| AppError::Database(e.to_string()))?;
+                conn.execute(
+                    "UPDATE providers SET meta = ?1 WHERE id = ?2 AND app_type = ?3",
+                    params![updated, provider_id, app_type],
+                )
+                .map_err(|e| AppError::Database(e.to_string()))?;
+            }
+        }
+
+        if Self::table_exists(conn, "profiles")?
+            && Self::has_column(conn, "profiles", "id")?
+            && Self::has_column(conn, "profiles", "payload")?
+        {
+            let profiles: Vec<(String, String)> = conn
+                .prepare("SELECT id, payload FROM profiles")?
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| AppError::Database(e.to_string()))?;
+
+            for (profile_id, payload_json) in profiles {
+                let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&payload_json) else {
+                    continue;
+                };
+                if !remove_legacy_partner_metadata(&mut value) {
+                    continue;
+                }
+                let updated =
+                    serde_json::to_string(&value).map_err(|e| AppError::Database(e.to_string()))?;
+                conn.execute(
+                    "UPDATE profiles SET payload = ?1 WHERE id = ?2",
+                    params![updated, profile_id],
+                )
+                .map_err(|e| AppError::Database(e.to_string()))?;
+            }
+        }
+
+        if Self::table_exists(conn, "settings")? {
+            let universal_json: Option<String> = conn
+                .query_row(
+                    "SELECT value FROM settings WHERE key = ?1",
+                    params!["universal_providers"],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(|e| AppError::Database(e.to_string()))?
+                .flatten();
+
+            if let Some(universal_json) = universal_json {
+                if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&universal_json) {
+                    if remove_legacy_partner_metadata(&mut value) {
+                        let updated = serde_json::to_string(&value)
+                            .map_err(|e| AppError::Database(e.to_string()))?;
+                        conn.execute(
+                            "UPDATE settings SET value = ?1 WHERE key = ?2",
+                            params![updated, "universal_providers"],
+                        )
+                        .map_err(|e| AppError::Database(e.to_string()))?;
+                    }
+                }
             }
         }
 

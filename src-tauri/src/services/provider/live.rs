@@ -810,7 +810,7 @@ fn get_codex_managed_oauth_live_auth_value(
                 .filter(|token| !token.trim().is_empty())
                 .ok_or_else(|| {
                     format!(
-                        "Codex OAuth 账号 {account_id} 缺少 id_token，请在认证中心重新登录后再保存"
+                        "Codex OAuth 账号 {account_id} 缺少 id_token，请在对应供应商表单中重新登录后再保存"
                     )
                 })?;
 

@@ -49,8 +49,8 @@ export function useManagedAuth(
     queryFn: () => authApi.authGetStatus(authProvider),
     staleTime: 30000,
     // A rejected xAI refresh token is persisted as `requires_reauth` by the
-    // proxy hot path. Periodically refresh local status so an already-open Auth
-    // Center stops showing the account as logged in without requiring a reload.
+    // proxy hot path. Periodically refresh local status so an already-open
+    // provider form stops showing the account as logged in without a reload.
     refetchInterval: authProvider === "xai_oauth" ? 15_000 : false,
   });
 

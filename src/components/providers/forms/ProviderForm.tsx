@@ -16,7 +16,6 @@ import {
   providersApi,
   settingsApi,
   type AppId,
-  type ManagedAuthProvider,
 } from "@/lib/api";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import type {
@@ -225,7 +224,6 @@ export interface ProviderFormProps {
   onCancel: () => void;
   onUniversalPresetSelect?: (preset: UniversalProviderPreset) => void;
   onManageUniversalProviders?: () => void;
-  onManageAuthAccounts?: (target: ManagedAuthProvider) => void;
   onSubmittingChange?: (isSubmitting: boolean) => void;
   onSubmitReadyChange?: (isReady: boolean) => void;
   initialData?: {
@@ -264,7 +262,6 @@ function ProviderFormFull({
   onCancel,
   onUniversalPresetSelect,
   onManageUniversalProviders,
-  onManageAuthAccounts,
   onSubmittingChange,
   initialData,
   showButtons = true,
@@ -312,8 +309,6 @@ function ProviderFormFull({
   const [activePreset, setActivePreset] = useState<{
     id: string;
     category?: ProviderCategory;
-    isPartner?: boolean;
-    partnerPromotionKey?: string;
   } | null>(null);
   const [isEndpointModalOpen, setIsEndpointModalOpen] = useState(false);
   const [isCodexEndpointModalOpen, setIsCodexEndpointModalOpen] =
@@ -1334,9 +1329,6 @@ function ProviderFormFull({
       if (activePreset.category) {
         payload.presetCategory = activePreset.category;
       }
-      if (activePreset.isPartner) {
-        payload.isPartner = activePreset.isPartner;
-      }
     }
 
     if (!isEditMode && isCodexOfficialManagedOauthBound) {
@@ -1376,20 +1368,6 @@ function ProviderFormFull({
       let mergedMeta = needsClearEndpoints
         ? mergeProviderMeta(initialData?.meta, {})
         : mergeProviderMeta(initialData?.meta, customEndpointsToSave);
-
-      if (activePreset?.isPartner) {
-        mergedMeta = {
-          ...(mergedMeta ?? {}),
-          isPartner: true,
-        };
-      }
-
-      if (activePreset?.partnerPromotionKey) {
-        mergedMeta = {
-          ...(mergedMeta ?? {}),
-          partnerPromotionKey: activePreset.partnerPromotionKey,
-        };
-      }
 
       if (mergedMeta !== undefined) {
         payload.meta = mergedMeta;
@@ -1556,8 +1534,6 @@ function ProviderFormFull({
   const {
     shouldShowApiKeyLink: shouldShowClaudeApiKeyLink,
     websiteUrl: claudeWebsiteUrl,
-    isPartner: isClaudePartner,
-    partnerPromotionKey: claudePartnerPromotionKey,
   } = useApiKeyLink({
     appId: "claude",
     category,
@@ -1569,8 +1545,6 @@ function ProviderFormFull({
   const {
     shouldShowApiKeyLink: shouldShowCodexApiKeyLink,
     websiteUrl: codexWebsiteUrl,
-    isPartner: isCodexPartner,
-    partnerPromotionKey: codexPartnerPromotionKey,
   } = useApiKeyLink({
     appId: "codex",
     category,
@@ -1582,8 +1556,6 @@ function ProviderFormFull({
   const {
     shouldShowApiKeyLink: shouldShowOpencodeApiKeyLink,
     websiteUrl: opencodeWebsiteUrl,
-    isPartner: isOpencodePartner,
-    partnerPromotionKey: opencodePartnerPromotionKey,
   } = useApiKeyLink({
     appId: "opencode",
     category,
@@ -1633,8 +1605,6 @@ function ProviderFormFull({
     setActivePreset({
       id: value,
       category: entry.preset.category,
-      isPartner: entry.preset.isPartner,
-      partnerPromotionKey: entry.preset.partnerPromotionKey,
     });
 
     if (appId === "codex") {
@@ -1829,8 +1799,6 @@ function ProviderFormFull({
               category={category}
               shouldShowApiKeyLink={shouldShowClaudeApiKeyLink}
               websiteUrl={claudeWebsiteUrl}
-              isPartner={isClaudePartner}
-              partnerPromotionKey={claudePartnerPromotionKey}
               isCopilotPreset={isCopilotProvider}
               isCodexOauthPreset={isClaudeCodexOauthProvider}
               isXaiOauthPreset={isXaiOauthProvider}
@@ -1843,7 +1811,6 @@ function ProviderFormFull({
               isCopilotAuthenticated={isCopilotAuthenticated}
               selectedGitHubAccountId={selectedGitHubAccountId}
               onGitHubAccountSelect={setSelectedGitHubAccountId}
-              onManageAuthAccounts={onManageAuthAccounts}
               isCodexOauthAuthenticated={isCodexOauthAuthenticated}
               selectedCodexAccountId={selectedCodexAccountId}
               onCodexAccountSelect={setSelectedCodexAccountId}
@@ -1910,8 +1877,6 @@ function ProviderFormFull({
               category={category}
               shouldShowApiKeyLink={shouldShowCodexApiKeyLink}
               websiteUrl={codexWebsiteUrl}
-              isPartner={isCodexPartner}
-              partnerPromotionKey={codexPartnerPromotionKey}
               isCodexOauthPreset={isCodexOfficialProvider}
               selectedCodexAccountId={selectedCodexAccountId}
               onCodexAccountSelect={setSelectedCodexAccountId}
@@ -1921,7 +1886,6 @@ function ProviderFormFull({
               onCodexAuthSelectionInvalidated={() =>
                 setHasValidCodexOfficialSelection(false)
               }
-              onManageAuthAccounts={onManageAuthAccounts}
               codexOauthSelectionLabel={t("codexOauth.signInMethod")}
               codexOauthNoneOptionLabel={t("codexOauth.noneOptionLabel")}
               codexOauthNoneOptionDescription={t(
@@ -1979,8 +1943,6 @@ function ProviderFormFull({
               category={category}
               shouldShowApiKeyLink={shouldShowOpencodeApiKeyLink}
               websiteUrl={opencodeWebsiteUrl}
-              isPartner={isOpencodePartner}
-              partnerPromotionKey={opencodePartnerPromotionKey}
               baseUrl={opencodeForm.opencodeBaseUrl}
               onBaseUrlChange={opencodeForm.handleOpencodeBaseUrlChange}
               headers={opencodeForm.opencodeHeaders}
@@ -2189,7 +2151,6 @@ function ProviderFormFull({
 export type ProviderFormValues = ProviderFormData & {
   presetId?: string;
   presetCategory?: ProviderCategory;
-  isPartner?: boolean;
   meta?: ProviderMeta;
   providerKey?: string; // OpenCode: user-defined provider key
 };

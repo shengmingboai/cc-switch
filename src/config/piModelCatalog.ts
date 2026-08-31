@@ -144,15 +144,6 @@ export const piModelCatalog = {
       maxTokens: 16_384,
     },
   },
-  "longcat/longcat-2.0": {
-    capabilities: {
-      name: "LongCat 2.0",
-      reasoning: true,
-      input: ["text"],
-      contextWindow: 1_000_000,
-      maxTokens: 131_072,
-    },
-  },
   "meta/llama-4-maverick": {
     capabilities: {
       name: "Meta Llama 4 Maverick",
@@ -394,42 +385,6 @@ export const piModelCatalog = {
       input: ["text", "image"],
       contextWindow: 1_000_000,
       maxTokens: 131_072,
-    },
-  },
-  "stepfun/step-3.5-flash": {
-    capabilities: {
-      name: "Step 3.5 Flash",
-      reasoning: true,
-      input: ["text"],
-      contextWindow: 256_000,
-      maxTokens: 256_000,
-    },
-  },
-  "streamlake/kat-coder-pro": {
-    capabilities: {
-      name: "KAT-Coder Pro",
-      reasoning: true,
-      input: ["text"],
-      contextWindow: 256_000,
-      maxTokens: 32_000,
-    },
-  },
-  "volcengine/ark-code-latest": {
-    capabilities: {
-      name: "Ark Code Latest",
-      reasoning: false,
-      input: ["text"],
-      contextWindow: 128_000,
-      maxTokens: 16_384,
-    },
-  },
-  "volcengine/doubao-seed-2.1-pro": {
-    capabilities: {
-      name: "Doubao Seed 2.1 Pro",
-      reasoning: true,
-      input: ["text", "image"],
-      contextWindow: 128_000,
-      maxTokens: 16_384,
     },
   },
   "xai/grok-4.3": {

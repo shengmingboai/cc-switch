@@ -217,6 +217,75 @@ fn schema_migration_rejects_future_version() {
 }
 
 #[test]
+fn schema_migration_removes_partner_metadata() {
+    let conn = Connection::open_in_memory().expect("open memory db");
+    Database::create_tables_on_conn(&conn).expect("create tables");
+
+    conn.execute(
+        "INSERT INTO providers (id, app_type, name, settings_config, meta)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![
+            "provider-a",
+            "claude",
+            "Provider A",
+            "{}",
+            r#"{"isPartner":true,"partnerPromotionKey":"legacy","usage_script":{"enabled":false}}"#,
+        ],
+    )
+    .expect("insert provider");
+    conn.execute(
+        "INSERT INTO profiles (id, name, payload) VALUES (?1, ?2, ?3)",
+        params![
+            "profile-a",
+            "Profile A",
+            r#"{"providers":{"claude":{"meta":{"primePartner":true}}}}"#,
+        ],
+    )
+    .expect("insert profile");
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES (?1, ?2)",
+        params![
+            "universal_providers",
+            r#"[{"meta":{"is_partner":true,"partner_promotion_key":"legacy"}}]"#,
+        ],
+    )
+    .expect("insert universal providers");
+    Database::set_user_version(&conn, 20).expect("set v20");
+
+    Database::apply_schema_migrations_on_conn(&conn).expect("apply migration");
+
+    let meta: String = conn
+        .query_row(
+            "SELECT meta FROM providers WHERE id = 'provider-a' AND app_type = 'claude'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("read provider meta");
+    let profile: String = conn
+        .query_row("SELECT payload FROM profiles WHERE id = 'profile-a'", [], |row| {
+            row.get(0)
+        })
+        .expect("read profile");
+    let universal: String = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'universal_providers'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("read universal providers");
+
+    for value in [meta, profile, universal] {
+        let value: serde_json::Value = serde_json::from_str(&value).expect("parse cleaned JSON");
+        let serialized = value.to_string();
+        assert!(!serialized.contains("isPartner"));
+        assert!(!serialized.contains("primePartner"));
+        assert!(!serialized.contains("partnerPromotionKey"));
+        assert!(!serialized.contains("is_partner"));
+        assert!(!serialized.contains("partner_promotion_key"));
+    }
+}
+
+#[test]
 fn schema_migration_adds_missing_columns_for_providers() {
     let conn = Connection::open_in_memory().expect("open memory db");
 

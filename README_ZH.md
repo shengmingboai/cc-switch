@@ -19,10 +19,10 @@
 
 现代 AI 编程依赖于 Claude Code、Claude Desktop、Codex、Grok Build、OpenCode 和 Pi 等工具——但每个工具都有自己的配置格式。切换 API 供应商意味着手动编辑 JSON、TOML 或 `.env` 文件，而在多个工具之间缺乏一个统一管理 MCP, SKILLS 的方式。
 
-**CC Switch** 为你提供一个桌面应用来管理所有支持的 AI 工具。无需手动编辑配置文件，你将获得一个可视化界面，一键将供应商导入应用，一键在不同的供应商之间进行切换，内置 50+ 供应商预设、统一的 MCP, SKILLS 管理以及系统托盘即时切换功能——所有操作都基于可靠的 SQLite 数据库和原子写入机制，保护你的配置不被损坏。
+**CC Switch** 为你提供一个桌面应用来管理所有支持的 AI 工具。无需手动编辑配置文件，你将获得一个可视化界面，一键将供应商导入应用，一键在不同的供应商之间进行切换，内置精选供应商预设、统一的 MCP, SKILLS 管理以及系统托盘即时切换功能——所有操作都基于可靠的 SQLite 数据库和原子写入机制，保护你的配置不被损坏。
 
 - **一个应用，六个工具** — 在单一界面中管理 Claude Code、Claude Desktop、Codex、Grok Build、OpenCode 和 Pi
-- **告别手动编辑** — 50+ 供应商预设，包括 AWS Bedrock、NVIDIA NIM 和社区中转服务；一键即可切换
+- **告别手动编辑** — 精选供应商预设，包括 AWS Bedrock、NVIDIA NIM；一键即可切换
 - **统一 MCP, SKILLS 管理** — 一个面板管理 Claude、Codex、Grok Build 和 OpenCode 的 MCP, SKILLS, 支持双向同步
 - **系统托盘快速切换** — 从托盘菜单即时切换供应商，无需打开完整应用
 - **云同步** — 通过 Dropbox、OneDrive、iCloud 或 WebDAV 服务器在不同设备之间同步供应商数据
@@ -41,7 +41,7 @@
 
 ### 供应商管理
 
-- **6 个支持工具，50+ 预设** — Claude Code、Claude Desktop、Codex、Grok Build、OpenCode、Pi；复制 key 即可一键导入
+- **6 个支持工具与内置预设** — Claude Code、Claude Desktop、Codex、Grok Build、OpenCode、Pi；复制 key 即可一键导入
 - **通用供应商** — 一份配置同步到 Claude Code 和 Codex
 - 一键切换、系统托盘快速访问、拖拽排序、导入导出
 
@@ -384,7 +384,7 @@ pnpm test:unit --coverage
 │       ├── deeplink/           # Deep Link 处理
 │       └── mcp/                # MCP 同步模块
 ├── tests/                      # 前端测试
-└── assets/                     # 截图 & 合作商资源
+└── assets/                     # 截图 & 静态资源
 ```
 
 </details>

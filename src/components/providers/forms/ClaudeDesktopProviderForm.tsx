@@ -55,15 +55,12 @@ import {
   type ClaudeDesktopDefaultRoute,
 } from "@/lib/api/providers";
 import { resolveManagedAccountId } from "@/lib/authBinding";
-import type { ManagedAuthProvider } from "@/lib/api";
 import { useCopilotAuth, useCodexOauth, useXaiOauth } from "./hooks";
 import { isOAuthProviderType } from "@/config/constants";
 
 export type ClaudeDesktopProviderFormValues = ProviderFormData & {
   presetId?: string;
   presetCategory?: ProviderCategory;
-  isPartner?: boolean;
-  partnerPromotionKey?: string;
   meta?: ProviderMeta;
   providerKey?: string;
 };
@@ -91,7 +88,6 @@ export interface ClaudeDesktopProviderFormProps {
     iconColor?: string;
   };
   showButtons?: boolean;
-  onManageAuthAccounts?: (target: ManagedAuthProvider) => void;
 }
 
 type RouteRow = {
@@ -244,7 +240,6 @@ export function ClaudeDesktopProviderForm({
   onSubmittingChange,
   initialData,
   showButtons = true,
-  onManageAuthAccounts,
 }: ClaudeDesktopProviderFormProps) {
   const { t } = useTranslation();
   const initialMode = isOAuthProviderType(initialData?.meta?.providerType)
@@ -284,8 +279,6 @@ export function ClaudeDesktopProviderForm({
   const [activePreset, setActivePreset] = useState<{
     id: string;
     category?: ProviderCategory;
-    isPartner?: boolean;
-    partnerPromotionKey?: string;
     providerType?: string;
     requiresOAuth?: boolean;
   } | null>(null);
@@ -400,8 +393,6 @@ export function ClaudeDesktopProviderForm({
   const {
     shouldShowApiKeyLink,
     websiteUrl: apiKeyLinkWebsiteUrl,
-    isPartner: apiKeyLinkIsPartner,
-    partnerPromotionKey: apiKeyLinkPromotionKey,
   } = useApiKeyLink({
     appId: "claude-desktop",
     category: apiKeyLinkCategory,
@@ -482,8 +473,6 @@ export function ClaudeDesktopProviderForm({
     setActivePreset({
       id: value,
       category: entry.preset.category,
-      isPartner: entry.preset.isPartner,
-      partnerPromotionKey: entry.preset.partnerPromotionKey,
       providerType: entry.preset.providerType,
       requiresOAuth: entry.preset.requiresOAuth,
     });
@@ -817,8 +806,6 @@ export function ClaudeDesktopProviderForm({
       meta,
       presetId: activePreset?.id,
       presetCategory: activePreset?.category,
-      isPartner: activePreset?.isPartner,
-      partnerPromotionKey: activePreset?.partnerPromotionKey,
     });
   };
 
@@ -888,25 +875,15 @@ export function ClaudeDesktopProviderForm({
               <div className="rounded-lg border border-border-default bg-muted/20 p-3">
                 {activeProviderType === "github_copilot" ? (
                   <CopilotAuthSection
-                    mode="select"
+                    mode="manage"
                     selectedAccountId={selectedGitHubAccountId}
                     onAccountSelect={setSelectedGitHubAccountId}
-                    onManageAccounts={
-                      onManageAuthAccounts
-                        ? () => onManageAuthAccounts("github_copilot")
-                        : undefined
-                    }
                   />
                 ) : activeProviderType === "codex_oauth" ? (
                   <CodexOAuthSection
-                    mode="select"
+                    mode="manage"
                     selectedAccountId={selectedCodexAccountId}
                     onAccountSelect={setSelectedCodexAccountId}
-                    onManageAccounts={
-                      onManageAuthAccounts
-                        ? () => onManageAuthAccounts("codex_oauth")
-                        : undefined
-                    }
                     fastModeEnabled={codexFastMode}
                     onFastModeChange={setCodexFastMode}
                   />
@@ -924,8 +901,6 @@ export function ClaudeDesktopProviderForm({
                 category={apiKeyLinkCategory}
                 shouldShowLink={shouldShowApiKeyLink}
                 websiteUrl={apiKeyLinkWebsiteUrl}
-                isPartner={apiKeyLinkIsPartner}
-                partnerPromotionKey={apiKeyLinkPromotionKey}
               />
             )}
 

@@ -201,11 +201,6 @@ const COMMON_FAMILY_RULES: CommonFamilyRule[] = [
     matches: (modelId) => modelId.startsWith("mimo-"),
   },
   {
-    id: "longcat",
-    providers: new Set(["longcat"]),
-    matches: (modelId) => modelId.startsWith("longcat-"),
-  },
-  {
     id: "kimi",
     providers: new Set(["moonshotai"]),
     matches: (modelId) => modelId.startsWith("kimi-"),

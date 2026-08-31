@@ -21,7 +21,6 @@ import {
   Plus,
   X,
   User,
-  Settings2,
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
@@ -37,8 +36,6 @@ interface CopilotAuthSectionProps {
   selectedAccountId?: string | null;
   /** 账号选择回调 */
   onAccountSelect?: (accountId: string | null) => void;
-  /** 打开账号管理入口 */
-  onManageAccounts?: () => void;
 }
 
 /**
@@ -51,7 +48,6 @@ export const CopilotAuthSection: React.FC<CopilotAuthSectionProps> = ({
   mode = "manage",
   selectedAccountId,
   onAccountSelect,
-  onManageAccounts,
 }) => {
   const { t } = useTranslation();
   const [copied, setCopied] = React.useState(false);
@@ -292,24 +288,7 @@ export const CopilotAuthSection: React.FC<CopilotAuthSectionProps> = ({
       )}
 
       {/* 账号选择器（有账号时显示） */}
-      {mode === "select" && accountSelect ? (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-          <div className="min-w-0 flex-1">{accountSelect}</div>
-          {onManageAccounts && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onManageAccounts}
-              className="h-9 shrink-0"
-            >
-              <Settings2 className="h-4 w-4" />
-              {t("copilot.manageAccounts", "管理账号")}
-            </Button>
-          )}
-        </div>
-      ) : (
-        accountSelect
-      )}
+      {accountSelect}
 
       {/* 已登录账号列表 */}
       {mode === "manage" && isStatusSuccess && hasAnyAccount && (

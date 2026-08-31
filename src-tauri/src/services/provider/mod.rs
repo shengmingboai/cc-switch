@@ -2360,7 +2360,7 @@ wire_api = "responses"
 
     #[test]
     #[serial]
-    fn codex_auth_center_remove_and_logout_clear_live_credentials_and_marker() {
+    fn codex_managed_auth_remove_and_logout_clear_live_credentials_and_marker() {
         with_test_home(|state, _| {
             crate::settings::reload_settings().expect("reload settings");
             tauri::async_runtime::block_on(async {
@@ -2374,7 +2374,7 @@ wire_api = "responses"
                     .await
                     .expect("seed managed account");
             });
-            let provider = managed_codex_provider("managed-auth-center", "acct-managed");
+            let provider = managed_codex_provider("managed-auth-provider", "acct-managed");
             state
                 .db
                 .save_provider(AppType::Codex.as_str(), &provider)
@@ -2474,7 +2474,7 @@ wire_api = "responses"
                     done_rx
                         .recv_timeout(std::time::Duration::from_millis(100))
                         .is_err(),
-                    "Auth Center removal must wait while a provider transaction owns the Codex lock"
+                    "Managed OAuth removal must wait while a provider transaction owns the Codex lock"
                 );
                 drop(switch_guard);
                 done_rx
@@ -2535,7 +2535,7 @@ wire_api = "responses"
                     done_rx
                         .recv_timeout(std::time::Duration::from_millis(100))
                         .is_err(),
-                    "Auth Center logout must wait while a provider transaction owns the Codex lock"
+                    "Managed OAuth logout must wait while a provider transaction owns the Codex lock"
                 );
                 drop(switch_guard);
                 done_rx
@@ -4230,11 +4230,10 @@ impl ProviderService {
             let live_managed = existing
                 .as_ref()
                 .and_then(Self::provider_live_config_managed);
-            if Self::check_live_config_exists(&app_type, id, live_managed)? {
-                match app_type {
-                    AppType::OpenCode => remove_opencode_provider_from_live(id)?,
-                    _ => {}
-                }
+            if Self::check_live_config_exists(&app_type, id, live_managed)?
+                && app_type == AppType::OpenCode
+            {
+                remove_opencode_provider_from_live(id)?;
             }
             state.db.delete_provider(app_type.as_str(), id)?;
             return Ok(());

@@ -373,7 +373,7 @@ pub(crate) async fn remove_codex_oauth_account_with_switch_lock(
     app_state: &AppState,
     account_id: &str,
 ) -> Result<(), String> {
-    // Serialize Auth Center credential deletion with managed provider
+    // Serialize managed OAuth credential deletion with provider
     // add/update/switch/hot-switch. Otherwise a switch that already preflighted
     // a bundle could recreate auth.json after removal.
     let _switch_guard = app_state

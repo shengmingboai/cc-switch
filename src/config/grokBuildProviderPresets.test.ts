@@ -34,12 +34,7 @@ describe("grokBuildProviderPresets", () => {
       "Kimi For Coding",
       "Zhipu GLM",
       "MiniMax",
-      "SiliconFlow",
-      "SiliconFlow en",
-      "ModelScope",
-      "Novita AI",
       "Nvidia",
-      "AtlasCloud",
       // 上游已有 grok-4.5（2026-08 起），但订阅制网关是否收录待产品决策，
       // 目前按刻意排除锁定（理由不再是"上游无 Grok"）。
       "OpenCode Go",

@@ -25,7 +25,6 @@ const requiredKeys = [
   "managedAuth.selectedAccountNeedsReauth",
   "managedAuth.selectedAccountUnavailable",
   "providerForm.providerKeyStatusLoading",
-  "settings.authCenter.xaiOauthDescription",
 ] as const;
 
 type TranslationTree = Record<string, unknown>;

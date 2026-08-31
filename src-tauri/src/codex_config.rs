@@ -613,7 +613,7 @@ fn migrate_legacy_codex_managed_oauth_live_auth_marker(
         || managed_user_identity.is_none()
     {
         return Err(AppError::Message(format!(
-            "旧版 Codex OAuth 账号 {managed_account_id} 无法通过稳定用户身份确认磁盘凭据所有权；为避免覆盖或串用 auth.json，本次操作已取消，请在认证中心重新登录该账号"
+            "旧版 Codex OAuth 账号 {managed_account_id} 无法通过稳定用户身份确认磁盘凭据所有权；为避免覆盖或串用 auth.json，本次操作已取消，请在对应供应商表单中重新登录该账号"
         )));
     }
 
@@ -727,7 +727,7 @@ fn clear_codex_managed_oauth_live_auth_marker_for_account(
     Ok(())
 }
 
-/// 切走托管 provider 或从认证中心删除账号时，清理其残留在
+/// 切走托管 provider 或删除账号时，清理其残留在
 /// `~/.codex/auth.json` 的 ChatGPT 登录。
 ///
 /// 删除谓词同时校验 cc-switch marker 中的本地账号 ID 与原生 auth.json 中的

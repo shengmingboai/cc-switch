@@ -1422,8 +1422,6 @@ export function PiProviderForm({
               category={category}
               shouldShowLink={Boolean(selectedPreset?.apiKeyUrl)}
               websiteUrl={selectedPreset?.apiKeyUrl ?? ""}
-              isPartner={selectedPreset?.isPartner}
-              partnerPromotionKey={selectedPreset?.partnerPromotionKey}
             />
 
             <div className="space-y-2">

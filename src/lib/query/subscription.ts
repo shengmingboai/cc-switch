@@ -115,7 +115,7 @@ export interface UseCodexOauthQuotaOptions {
 /**
  * Codex OAuth 订阅额度查询 hook（按账号 ID）
  *
- * 直接以 cc-switch 自管的 ChatGPT 账号 ID 查询额度，供认证中心里逐个账号
+ * 直接以 cc-switch 自管的 ChatGPT 账号 ID 查询额度，供供应商卡片等按账号
  * 展示用量时复用。Query key 与 `useCodexOauthQuota` 一致，绑定到同一账号的
  * 供应商卡片与账号列表会自动去重共享同一份请求缓存。
  * accountId 为 null 时使用 "default" 占位，让后端 fallback 到默认账号。

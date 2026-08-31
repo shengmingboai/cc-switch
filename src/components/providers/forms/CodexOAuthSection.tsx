@@ -27,15 +27,12 @@ import {
 } from "lucide-react";
 import { useCodexOauth } from "./hooks/useCodexOauth";
 import { copyText } from "@/lib/clipboard";
-import CodexOauthAccountQuota from "@/components/CodexOauthAccountQuota";
 import { cn } from "@/lib/utils";
 
 interface CodexOAuthSectionProps {
   className?: string;
-  /** select 模式只展示账号选择和管理入口；manage 模式展示完整账号管理 */
+  /** select 模式只展示账号选择；manage 模式展示完整账号管理 */
   mode?: "manage" | "select";
-  /** 是否展示每个账号的订阅额度 */
-  showAccountQuota?: boolean;
   /** 当前选中的 ChatGPT 账号 ID */
   selectedAccountId?: string | null;
   /** 账号选择回调 */
@@ -44,8 +41,6 @@ interface CodexOAuthSectionProps {
   onSelectionConfirmed?: () => void;
   /** 已选账号自动失效；由父级清除与该选择关联的确认状态 */
   onSelectionInvalidated?: () => void;
-  /** 打开账号管理入口 */
-  onManageAccounts?: () => void;
   /** 账号选择字段标题；官方供应商可使用“登录方式” */
   selectionLabel?: string;
   /** 空选择项文案；默认表示使用托管认证的默认账号 */
@@ -75,12 +70,10 @@ interface CodexOAuthSectionProps {
 export const CodexOAuthSection: React.FC<CodexOAuthSectionProps> = ({
   className,
   mode = "manage",
-  showAccountQuota = false,
   selectedAccountId,
   onAccountSelect,
   onSelectionConfirmed,
   onSelectionInvalidated,
-  onManageAccounts,
   selectionLabel,
   noneOptionLabel,
   noneOptionDescription,
@@ -126,10 +119,6 @@ export const CodexOAuthSection: React.FC<CodexOAuthSectionProps> = ({
   };
 
   const handleAccountSelect = (value: string) => {
-    if (value === "__manage_accounts__") {
-      onManageAccounts?.();
-      return;
-    }
     onSelectionConfirmed?.();
     onAccountSelect?.(value === "none" ? null : value);
   };
@@ -277,7 +266,7 @@ export const CodexOAuthSection: React.FC<CodexOAuthSectionProps> = ({
                       )}
                     </div>
                   </SelectItem>
-                  {(index < accounts.length - 1 || onManageAccounts) && (
+                  {index < accounts.length - 1 && (
                     <SelectSeparator
                       data-account-divider="true"
                       className="mx-2 my-0 bg-border/60"
@@ -285,22 +274,9 @@ export const CodexOAuthSection: React.FC<CodexOAuthSectionProps> = ({
                   )}
                 </React.Fragment>
               ))}
-            {!nativeLoginOnly && onManageAccounts && (
-              <SelectItem value="__manage_accounts__" className="py-2 pl-6">
-                <div className="flex items-center gap-2">
-                  <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate text-sm font-medium leading-5">
-                    {t(
-                      "codexOauth.addOrManageAccounts",
-                      "添加或管理 ChatGPT 账号…",
-                    )}
-                  </span>
-                </div>
-              </SelectItem>
-            )}
             {allowUnboundSelection &&
               !nativeLoginOnly &&
-              (accounts.length > 0 || onManageAccounts) && (
+              accounts.length > 0 && (
                 <SelectSeparator className="my-1.5 bg-border" />
               )}
             {allowUnboundSelection && (
@@ -423,11 +399,12 @@ export const CodexOAuthSection: React.FC<CodexOAuthSectionProps> = ({
               "codexOauth.reauthSelectHint",
               "该账号需重新登录以启用托管绑定。",
             )}
-            {onManageAccounts && (
+            {selectedAccountId && (
               <button
                 type="button"
-                onClick={onManageAccounts}
+                onClick={() => reauthAccount(selectedAccountId)}
                 className="ml-1 font-medium underline underline-offset-2 hover:text-amber-700 dark:hover:text-amber-100"
+                disabled={isAddingAccount}
               >
                 {t("codexOauth.reauthNow", "立即重新登录")}
               </button>
@@ -540,9 +517,6 @@ export const CodexOAuthSection: React.FC<CodexOAuthSectionProps> = ({
                     </Button>
                   </div>
                 </div>
-                {showAccountQuota && (
-                  <CodexOauthAccountQuota accountId={account.id} />
-                )}
               </div>
             ))}
           </div>

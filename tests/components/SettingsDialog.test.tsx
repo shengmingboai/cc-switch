@@ -276,6 +276,13 @@ describe("SettingsPage Component", () => {
     vi.unstubAllGlobals();
   });
 
+  it("falls back to the general tab for the removed auth tab", () => {
+    renderSettingsPage({ defaultTab: "auth" });
+
+    expect(screen.getByTestId("tab-general")).toBeInTheDocument();
+    expect(screen.queryByTestId("tab-auth")).not.toBeInTheDocument();
+  });
+
   it("should not render form content when loading", () => {
     settingsMock = createSettingsMock({ settings: null, isLoading: true });
 

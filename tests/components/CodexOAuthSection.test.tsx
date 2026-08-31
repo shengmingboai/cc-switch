@@ -3,22 +3,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CodexOAuthSection } from "@/components/providers/forms/CodexOAuthSection";
-import { AuthCenterPanel } from "@/components/settings/AuthCenterPanel";
 
 const mocks = vi.hoisted(() => ({
   useCodexOauth: vi.fn(),
-  renderAccountQuota: vi.fn(),
 }));
 
 vi.mock("@/components/providers/forms/hooks/useCodexOauth", () => ({
   useCodexOauth: mocks.useCodexOauth,
-}));
-
-vi.mock("@/components/CodexOauthAccountQuota", () => ({
-  default: ({ accountId }: { accountId: string }) => {
-    mocks.renderAccountQuota(accountId);
-    return <div data-testid="account-quota">{accountId}</div>;
-  },
 }));
 
 vi.mock("@/components/providers/forms/CopilotAuthSection", () => ({
@@ -98,23 +89,6 @@ describe("CodexOAuthSection", () => {
     } else {
       Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
     }
-  });
-
-  it("does not render account quota by default", () => {
-    render(<CodexOAuthSection />);
-
-    expect(mocks.renderAccountQuota).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("account-quota")).not.toBeInTheDocument();
-  });
-
-  it("renders account quota in Auth Center", () => {
-    render(<AuthCenterPanel />);
-
-    expect(mocks.renderAccountQuota).toHaveBeenCalledWith("account-1");
-    expect(mocks.renderAccountQuota).toHaveBeenCalledWith("account-2");
-    expect(
-      screen.getAllByTestId("account-quota").map((quota) => quota.textContent),
-    ).toEqual(["account-1", "account-2"]);
   });
 
   it("reauthenticates the selected legacy account in place", async () => {
@@ -246,7 +220,7 @@ describe("CodexOAuthSection", () => {
     );
   });
 
-  it("does not default a new Official card to the current Codex login", async () => {
+  it("keeps the unbound choice after managed accounts", async () => {
     const user = userEvent.setup();
     const onAccountSelect = vi.fn();
     const onSelectionConfirmed = vi.fn();
@@ -260,7 +234,6 @@ describe("CodexOAuthSection", () => {
         noneOptionDescription="The account changes with the current Codex CLI login"
         allowUnboundSelection
         requireExplicitSelection
-        onManageAccounts={vi.fn()}
       />,
     );
 
@@ -270,21 +243,17 @@ describe("CodexOAuthSection", () => {
     const optionLabels = (await screen.findAllByRole("option")).map(
       (option) => option.textContent,
     );
-    const manageOptionIndex = optionLabels.findIndex((label) =>
-      label?.includes("添加或管理 ChatGPT 账号"),
-    );
     const nativeOptionIndex = optionLabels.findIndex((label) =>
       label?.includes("Follow Codex login"),
     );
 
     expect(optionLabels.indexOf("user@example.com")).toBeLessThan(
-      manageOptionIndex,
+      nativeOptionIndex,
     );
-    expect(manageOptionIndex).toBeLessThan(nativeOptionIndex);
     expect(nativeOptionIndex).toBe(optionLabels.length - 1);
     expect(
       document.querySelectorAll('[data-account-divider="true"]'),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
 
     await user.click(
       await screen.findByRole("option", { name: /Follow Codex login/ }),
