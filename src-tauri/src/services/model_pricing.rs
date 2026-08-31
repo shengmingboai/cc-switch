@@ -19,6 +19,16 @@ fn file_lock() -> &'static Mutex<()> {
     MODEL_PRICING_FILE_LOCK.get_or_init(|| Mutex::new(()))
 }
 
+fn is_removed_model_id(model_id: &str) -> bool {
+    let model_id = model_id.trim().to_ascii_lowercase();
+    model_id == "gemini"
+        || model_id.starts_with("gemini-")
+        || model_id == "google/gemini"
+        || model_id.starts_with("google/gemini-")
+        || model_id == "models/gemini"
+        || model_id.starts_with("models/gemini-")
+}
+
 fn default_true() -> bool {
     true
 }
@@ -167,8 +177,14 @@ fn normalize_key_list(values: Vec<String>) -> Vec<String> {
 }
 
 fn normalize_sync_config(mut config: ModelsDevSyncConfig) -> ModelsDevSyncConfig {
-    config.selected_model_keys = normalize_key_list(config.selected_model_keys);
-    config.excluded_common_model_keys = normalize_key_list(config.excluded_common_model_keys);
+    config.selected_model_keys = normalize_key_list(config.selected_model_keys)
+        .into_iter()
+        .filter(|model_id| !is_removed_model_id(model_id))
+        .collect();
+    config.excluded_common_model_keys = normalize_key_list(config.excluded_common_model_keys)
+        .into_iter()
+        .filter(|model_id| !is_removed_model_id(model_id))
+        .collect();
     config.last_sync_error = config.last_sync_error.and_then(|error| {
         let trimmed = error.trim();
         if trimmed.is_empty() {
@@ -190,11 +206,12 @@ fn normalize_file(mut file: ModelPricingFile) -> Result<ModelPricingFile, AppErr
 
     let deleted = normalize_key_list(file.deleted_model_ids)
         .into_iter()
+        .filter(|model_id| !is_removed_model_id(model_id))
         .collect::<BTreeSet<_>>();
     let mut models = BTreeMap::new();
     for entry in file.models {
         let entry = normalize_pricing(entry)?;
-        if !deleted.contains(&entry.model_id) {
+        if !is_removed_model_id(&entry.model_id) && !deleted.contains(&entry.model_id) {
             models.insert(entry.model_id.clone(), entry);
         }
     }
@@ -212,8 +229,13 @@ fn read_file_unlocked() -> Result<Option<ModelPricingFile>, AppError> {
         return Ok(None);
     }
     let content = fs::read_to_string(&path).map_err(|error| AppError::io(&path, error))?;
-    let file = serde_json::from_str(&content).map_err(|error| AppError::json(&path, error))?;
-    normalize_file(file).map(Some)
+    let file: ModelPricingFile =
+        serde_json::from_str(&content).map_err(|error| AppError::json(&path, error))?;
+    let normalized = normalize_file(file.clone())?;
+    if normalized != file {
+        write_file_unlocked(&normalized)?;
+    }
+    Ok(Some(normalized))
 }
 
 fn write_file_unlocked(file: &ModelPricingFile) -> Result<(), AppError> {
@@ -371,9 +393,14 @@ fn update_model_pricing_batch_inner(
     let mut normalized = BTreeMap::new();
     for entry in entries {
         let entry = normalize_pricing(entry)?;
-        normalized.insert(entry.model_id.clone(), entry);
+        if !is_removed_model_id(&entry.model_id) {
+            normalized.insert(entry.model_id.clone(), entry);
+        }
     }
     let entries = normalized.into_values().collect::<Vec<_>>();
+    if entries.is_empty() {
+        return Ok(0);
+    }
     let model_ids = entries
         .iter()
         .map(|entry| entry.model_id.clone())
@@ -669,6 +696,70 @@ mod tests {
                 )
                 .expect("query deleted pricing");
             assert_eq!(count, 0);
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn legacy_gemini_pricing_is_removed_from_local_file_and_database() {
+        with_test_home(|db, path| {
+            get_models_dev_sync_state(db).expect("create pricing file");
+            let file = ModelPricingFile {
+                version: MODEL_PRICING_FILE_VERSION,
+                models_dev_sync: ModelsDevSyncConfig {
+                    selected_model_keys: vec![
+                        "gemini-2.5-pro".to_string(),
+                        "relay/custom-model".to_string(),
+                    ],
+                    ..Default::default()
+                },
+                models: vec![
+                    ModelPricingInfo {
+                        model_id: "gemini-2.5-pro".to_string(),
+                        display_name: "Gemini 2.5 Pro".to_string(),
+                        input_cost_per_million: "1".to_string(),
+                        output_cost_per_million: "2".to_string(),
+                        cache_read_cost_per_million: "0.1".to_string(),
+                        cache_creation_cost_per_million: "0.2".to_string(),
+                    },
+                    sample_pricing(),
+                ],
+                deleted_model_ids: vec!["google/gemini-2.5-flash".to_string()],
+            };
+            fs::write(
+                path,
+                serde_json::to_vec_pretty(&file).expect("serialize legacy pricing file"),
+            )
+            .expect("write legacy pricing file");
+
+            assert_eq!(sync_local_model_pricing(db).expect("sync pricing"), 1);
+
+            let content = fs::read_to_string(path).expect("read normalized pricing file");
+            let normalized: ModelPricingFile =
+                serde_json::from_str(&content).expect("parse normalized pricing file");
+            assert!(normalized
+                .models
+                .iter()
+                .all(|entry| !is_removed_model_id(&entry.model_id)));
+            assert!(normalized
+                .deleted_model_ids
+                .iter()
+                .all(|model_id| !is_removed_model_id(model_id)));
+            assert_eq!(normalized.models_dev_sync.selected_model_keys, vec![
+                "relay/custom-model".to_string()
+            ]);
+
+            let conn = db.conn.lock().expect("lock test database");
+            let gemini_count: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM model_pricing
+                     WHERE lower(model_id) LIKE 'gemini-%'
+                        OR lower(model_id) LIKE 'google/gemini-%'",
+                    [],
+                    |row| row.get(0),
+                )
+                .expect("query legacy Gemini pricing");
+            assert_eq!(gemini_count, 0);
         });
     }
 

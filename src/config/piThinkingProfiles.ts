@@ -148,15 +148,6 @@ export const piThinkingProfiles = {
       max: "max",
     },
   },
-  geminiLowHigh: {
-    map: {
-      off: null,
-      minimal: null,
-      low: "LOW",
-      medium: null,
-      high: "HIGH",
-    },
-  },
 } as const satisfies Record<string, PiThinkingProfile>;
 
 export type PiThinkingProfileId = keyof typeof piThinkingProfiles;
@@ -212,21 +203,6 @@ export const piThinkingBindings: readonly PiThinkingBinding[] = [
     api: "anthropic-messages",
     profileId: "xhighAndMax",
     modelCompat: { forceAdaptiveThinking: true },
-  },
-  {
-    catalogKey: "google/gemini-3.1-pro-preview",
-    api: "google-generative-ai",
-    profileId: "geminiLowHigh",
-  },
-  {
-    catalogKey: "google/gemini-3.5-flash",
-    api: "google-generative-ai",
-    profileId: "offUnsupported",
-  },
-  {
-    catalogKey: "google/gemini-3.6-flash",
-    api: "google-generative-ai",
-    profileId: "offUnsupported",
   },
   {
     catalogKey: "openai/gpt-5",

@@ -135,51 +135,6 @@ export const piModelCatalog = {
       maxTokens: 384_000,
     },
   },
-  "google/gemini-2.5-flash": {
-    capabilities: {
-      name: "Gemini 2.5 Flash",
-      reasoning: true,
-      input: ["text", "image"],
-      contextWindow: 1_048_576,
-      maxTokens: 65_536,
-    },
-  },
-  "google/gemini-2.5-pro": {
-    capabilities: {
-      name: "Gemini 2.5 Pro",
-      reasoning: true,
-      input: ["text", "image"],
-      contextWindow: 1_048_576,
-      maxTokens: 65_536,
-    },
-  },
-  "google/gemini-3.1-pro-preview": {
-    capabilities: {
-      name: "Gemini 3.1 Pro Preview",
-      reasoning: true,
-      input: ["text", "image"],
-      contextWindow: 1_048_576,
-      maxTokens: 65_536,
-    },
-  },
-  "google/gemini-3.5-flash": {
-    capabilities: {
-      name: "Gemini 3.5 Flash",
-      reasoning: true,
-      input: ["text", "image"],
-      contextWindow: 1_048_576,
-      maxTokens: 65_536,
-    },
-  },
-  "google/gemini-3.6-flash": {
-    capabilities: {
-      name: "Gemini 3.6 Flash",
-      reasoning: true,
-      input: ["text", "image"],
-      contextWindow: 1_048_576,
-      maxTokens: 65_536,
-    },
-  },
   "inclusionai/ling-2.5-1t": {
     capabilities: {
       name: "Ling 2.5-1T",

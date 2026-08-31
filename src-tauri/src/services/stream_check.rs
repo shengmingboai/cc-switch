@@ -173,14 +173,12 @@ impl StreamCheckService {
         }
 
         match app_type {
-            // 累加模式应用的 settings_config 结构与 Claude/Codex/Gemini 不同，
+            // 累加模式应用的 settings_config 结构与 Claude/Codex 不同，
             // 不走 adapter，直接按各自约定提取 base_url。
             AppType::OpenCode => {
                 let npm = Self::extract_opencode_npm(provider);
                 Self::resolve_opencode_base_url(provider, npm.as_deref())
             }
-            AppType::OpenClaw => Self::extract_openclaw_base_url(provider),
-            AppType::Hermes => Self::extract_hermes_base_url(provider),
             AppType::Pi => crate::pi_config::provider_base_url(&provider.settings_config),
             AppType::ClaudeDesktop => ClaudeAdapter::new()
                 .extract_base_url(provider)
@@ -295,40 +293,6 @@ impl StreamCheckService {
     }
 
     // ===== 各应用 base_url 提取（settings_config 结构互不相同）=====
-
-    /// OpenClaw: `{ baseUrl, apiKey, api, ... }`（camelCase）
-    fn extract_openclaw_base_url(provider: &Provider) -> Result<String, AppError> {
-        provider
-            .settings_config
-            .get("baseUrl")
-            .and_then(|v| v.as_str())
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .ok_or_else(|| {
-                AppError::localized(
-                    "openclaw_base_url_missing",
-                    "OpenClaw 供应商缺少 baseUrl",
-                    "OpenClaw provider is missing `baseUrl`",
-                )
-            })
-    }
-
-    /// Hermes: `{ base_url, api_key, api_mode }`（snake_case）
-    fn extract_hermes_base_url(provider: &Provider) -> Result<String, AppError> {
-        provider
-            .settings_config
-            .get("base_url")
-            .and_then(|v| v.as_str())
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .ok_or_else(|| {
-                AppError::localized(
-                    "hermes_base_url_missing",
-                    "Hermes 供应商缺少 base_url",
-                    "Hermes provider is missing `base_url`",
-                )
-            })
-    }
 
     /// OpenCode: `{ npm, options: { baseURL, apiKey }, ... }`
     ///
@@ -494,18 +458,6 @@ mod tests {
         let result =
             StreamCheckService::resolve_opencode_base_url(&p, Some("@ai-sdk/openai-compatible"));
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_extract_openclaw_base_url_missing_errors() {
-        let p = make_provider(serde_json::json!({ "apiKey": "k", "api": "openai-completions" }));
-        assert!(StreamCheckService::extract_openclaw_base_url(&p).is_err());
-
-        let p2 = make_provider(serde_json::json!({ "baseUrl": "https://api.deepseek.com/v1" }));
-        assert_eq!(
-            StreamCheckService::extract_openclaw_base_url(&p2).unwrap(),
-            "https://api.deepseek.com/v1"
-        );
     }
 
     #[test]

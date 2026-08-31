@@ -1,8 +1,7 @@
 //! SQL fragment helpers shared across usage aggregation queries.
 //!
 //! Anthropic reports `input_tokens` as fresh (cache reads counted
-//! separately); OpenAI Responses API and Google Gemini's
-//! `promptTokenCount` both include the cached portion. Any aggregation
+//! separately); OpenAI Responses API also includes the cached portion. Any aggregation
 //! summing `input_tokens` across providers must route through
 //! [`fresh_input_sql`] to recover a consistent semantics.
 
@@ -20,7 +19,7 @@
 /// （usage_stats 成本重算）与展示侧（本文件的 SQL 归一）都必须引用这里，
 /// 防止同一语义散落多处后新增 app 时漏改（grokbuild 曾在回填侧漏掉）。
 /// 前端 `src/types/usage.ts` 的同名常量是跨语言的对应物，改动须同步。
-pub(crate) const CACHE_INCLUSIVE_APP_TYPES: &[&str] = &["codex", "gemini", "grokbuild"];
+pub(crate) const CACHE_INCLUSIVE_APP_TYPES: &[&str] = &["codex", "grokbuild"];
 
 /// `app_type` 的存储 `input_tokens` 是否已包含 cache read/write。
 pub(crate) fn is_cache_inclusive_app(app_type: &str) -> bool {
@@ -101,7 +100,6 @@ mod tests {
         let sql = fresh_input_sql("");
         assert!(!sql.contains("."));
         assert!(sql.contains("'codex'"));
-        assert!(sql.contains("'gemini'"));
         assert!(sql.contains("'grokbuild'"));
     }
 
@@ -112,13 +110,6 @@ mod tests {
         conn.execute(
             "INSERT INTO proxy_request_logs (request_id, app_type, input_tokens, cache_read_tokens)
              VALUES ('codex-1', 'codex', 1000, 600)",
-            [],
-        )
-        .unwrap();
-        // Gemini row: Google semantics — promptTokenCount includes cachedContentTokenCount.
-        conn.execute(
-            "INSERT INTO proxy_request_logs (request_id, app_type, input_tokens, cache_read_tokens)
-             VALUES ('gemini-1', 'gemini', 800, 300)",
             [],
         )
         .unwrap();
@@ -140,8 +131,8 @@ mod tests {
         let expr = fresh_input_sql("l");
         let sql = format!("SELECT COALESCE(SUM({expr}), 0) FROM proxy_request_logs l");
         let total: i64 = conn.query_row(&sql, [], |r| r.get(0)).unwrap();
-        // Codex: 400; Gemini: 500; Grok Build: 450; Claude: 200 unchanged.
-        assert_eq!(total, 400 + 500 + 450 + 200);
+        // Codex: 400; Grok Build: 450; Claude: 200 unchanged.
+        assert_eq!(total, 400 + 450 + 200);
     }
 
     #[test]

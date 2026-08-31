@@ -18,16 +18,6 @@ vi.mock("@/lib/api", () => ({
   settingsApi: {},
 }));
 
-vi.mock("@/hooks/useHermes", () => ({
-  invalidateHermesProviderCaches: vi.fn(),
-}));
-
-vi.mock("@/hooks/useOpenClaw", () => ({
-  openclawKeys: {
-    health: ["openclaw", "health"],
-  },
-}));
-
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (_key: string, options?: { defaultValue?: string }) =>
@@ -98,7 +88,7 @@ describe("useUpdateProviderMutation", () => {
   it("also invalidates the previous usage query when provider id changes", async () => {
     const { wrapper, invalidateSpy } = createWrapper();
     const provider = createProvider({ id: "provider-new" });
-    const { result } = renderHook(() => useUpdateProviderMutation("openclaw"), {
+    const { result } = renderHook(() => useUpdateProviderMutation("codex"), {
       wrapper,
     });
 
@@ -109,16 +99,12 @@ describe("useUpdateProviderMutation", () => {
       });
     });
 
-    expect(apiMocks.update).toHaveBeenCalledWith(
-      provider,
-      "openclaw",
-      "provider-old",
-    );
+    expect(apiMocks.update).toHaveBeenCalledWith(provider, "codex", "provider-old");
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: usageKeys.script("provider-new", "openclaw"),
+      queryKey: usageKeys.script("provider-new", "codex"),
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: usageKeys.script("provider-old", "openclaw"),
+      queryKey: usageKeys.script("provider-old", "codex"),
     });
     expect(invalidateSpy).not.toHaveBeenCalledWith({
       queryKey: usageKeys.all,

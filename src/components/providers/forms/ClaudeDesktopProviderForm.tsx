@@ -39,7 +39,6 @@ import type {
   ProviderCategory,
   ProviderMeta,
 } from "@/types";
-import type { OpenClawSuggestedDefaults } from "@/config/openclawProviderPresets";
 import {
   CLAUDE_DESKTOP_ROLE_ROUTE_IDS,
   claudeDesktopProviderPresets,
@@ -67,7 +66,6 @@ export type ClaudeDesktopProviderFormValues = ProviderFormData & {
   partnerPromotionKey?: string;
   meta?: ProviderMeta;
   providerKey?: string;
-  suggestedDefaults?: OpenClawSuggestedDefaults;
 };
 
 type ApiKeyField = "ANTHROPIC_AUTH_TOKEN" | "ANTHROPIC_API_KEY";
@@ -942,9 +940,7 @@ export function ClaudeDesktopProviderForm({
                   ? t("providerForm.apiHintResponses")
                   : needsModelMapping && apiFormat === "openai_chat"
                     ? t("providerForm.apiHintOAI")
-                    : needsModelMapping && apiFormat === "gemini_native"
-                      ? t("providerForm.apiHintGeminiNative")
-                      : t("providerForm.apiHint")
+                    : t("providerForm.apiHint")
               }
               showManageButton={false}
             />
@@ -1043,12 +1039,6 @@ export function ClaudeDesktopProviderForm({
                           <SelectItem value="openai_responses">
                             {t("providerForm.apiFormatOpenAIResponses", {
                               defaultValue: "OpenAI Responses API (需开启路由)",
-                            })}
-                          </SelectItem>
-                          <SelectItem value="gemini_native">
-                            {t("providerForm.apiFormatGeminiNative", {
-                              defaultValue:
-                                "Gemini Native generateContent (需开启路由)",
                             })}
                           </SelectItem>
                         </SelectContent>

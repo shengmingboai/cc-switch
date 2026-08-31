@@ -31,11 +31,8 @@ const APP_ICON_NAME: Record<AppId, string> = {
   claude: "claude",
   "claude-desktop": "claude",
   codex: "openai",
-  gemini: "gemini",
   grokbuild: "grok",
   opencode: "opencode",
-  openclaw: "openclaw",
-  hermes: "hermes",
   pi: "pi",
 };
 
@@ -43,11 +40,8 @@ const APP_DISPLAY_NAME: Record<AppId, string> = {
   claude: "Claude Code",
   "claude-desktop": "Claude Desktop",
   codex: "Codex",
-  gemini: "Gemini",
   grokbuild: "Grok Build",
   opencode: "OpenCode",
-  openclaw: "OpenClaw",
-  hermes: "Hermes",
   pi: "Pi",
 };
 

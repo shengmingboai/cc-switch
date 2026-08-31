@@ -4,7 +4,7 @@ import { decodeBase64Utf8 } from "@/lib/utils/base64";
 import { isSensitiveConfigKey, maskSensitiveValue } from "@/utils/deeplinkRisk";
 
 export interface ParsedDeepLinkConfig {
-  type: "claude" | "codex" | "gemini" | "grokbuild";
+  type: "claude" | "codex" | "grokbuild";
   env?: Record<string, string>;
   auth?: Record<string, string>;
   tomlConfig?: string;
@@ -69,12 +69,6 @@ export function parseDeepLinkConfigPreview(
         type: "codex",
         auth: (parsed.auth as Record<string, string>) || {},
         tomlConfig: config ? sanitizeTomlForPreview(config) : "",
-      };
-    }
-    if (request.app === "gemini") {
-      return {
-        type: "gemini",
-        env: parsed as Record<string, string>,
       };
     }
     if (request.app === "grokbuild") {

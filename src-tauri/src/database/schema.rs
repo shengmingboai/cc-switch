@@ -4,13 +4,73 @@
 
 use super::{lock_conn, Database, SCHEMA_VERSION};
 use crate::error::AppError;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 
 #[derive(Serialize)]
 struct LegacySkillMigrationRow {
     directory: String,
     app_type: String,
+}
+
+fn remove_legacy_app_slots(value: &mut serde_json::Value, removed_apps: &[&str]) -> bool {
+    let mut changed = false;
+    for section_name in ["providers", "mcp", "skills", "prompts"] {
+        if let Some(section) = value
+            .get_mut(section_name)
+            .and_then(|section| section.as_object_mut())
+        {
+            for app in removed_apps {
+                changed |= section.remove(*app).is_some();
+            }
+        }
+    }
+    changed
+}
+
+fn remove_legacy_universal_provider_slots(
+    value: &mut serde_json::Value,
+    removed_apps: &[&str],
+) -> bool {
+    let Some(providers) = value.as_object_mut() else {
+        return false;
+    };
+
+    let mut changed = false;
+    for provider in providers.values_mut() {
+        let Some(provider) = provider.as_object_mut() else {
+            continue;
+        };
+        for section_name in ["apps", "models"] {
+            if let Some(section) = provider
+                .get_mut(section_name)
+                .and_then(|section| section.as_object_mut())
+            {
+                for app in removed_apps {
+                    changed |= section.remove(*app).is_some();
+                }
+            }
+        }
+    }
+    changed
+}
+
+fn remove_legacy_provider_ids_from_profile(
+    value: &mut serde_json::Value,
+    app: &str,
+    provider_ids: &[String],
+) -> bool {
+    let Some(providers) = value.get_mut("providers").and_then(|value| value.as_object_mut())
+    else {
+        return false;
+    };
+    let Some(provider_id) = providers.get(app).and_then(|value| value.as_str()) else {
+        return false;
+    };
+    if !provider_ids.iter().any(|id| id == provider_id) {
+        return false;
+    }
+    providers.remove(app).is_some()
 }
 
 impl Database {
@@ -65,9 +125,8 @@ impl Database {
             id TEXT PRIMARY KEY, name TEXT NOT NULL, server_config TEXT NOT NULL,
             description TEXT, homepage TEXT, docs TEXT, tags TEXT NOT NULL DEFAULT '[]',
             enabled_claude BOOLEAN NOT NULL DEFAULT 0, enabled_codex BOOLEAN NOT NULL DEFAULT 0,
-            enabled_gemini BOOLEAN NOT NULL DEFAULT 0, enabled_grokbuild BOOLEAN NOT NULL DEFAULT 0,
-            enabled_opencode BOOLEAN NOT NULL DEFAULT 0,
-            enabled_hermes BOOLEAN NOT NULL DEFAULT 0
+            enabled_grokbuild BOOLEAN NOT NULL DEFAULT 0,
+            enabled_opencode BOOLEAN NOT NULL DEFAULT 0
         )",
             [],
         )
@@ -93,10 +152,8 @@ impl Database {
             readme_url TEXT,
             enabled_claude BOOLEAN NOT NULL DEFAULT 0,
             enabled_codex BOOLEAN NOT NULL DEFAULT 0,
-            enabled_gemini BOOLEAN NOT NULL DEFAULT 0,
             enabled_grokbuild BOOLEAN NOT NULL DEFAULT 0,
             enabled_opencode BOOLEAN NOT NULL DEFAULT 0,
-            enabled_hermes BOOLEAN NOT NULL DEFAULT 0,
             installed_at INTEGER NOT NULL DEFAULT 0,
             content_hash TEXT,
             updated_at INTEGER NOT NULL DEFAULT 0
@@ -124,7 +181,7 @@ impl Database {
 
         // 8. Proxy Config 表（三行结构，app_type 主键）
         conn.execute("CREATE TABLE IF NOT EXISTS proxy_config (
-            app_type TEXT PRIMARY KEY CHECK (app_type IN ('claude','codex','gemini','grokbuild')),
+            app_type TEXT PRIMARY KEY CHECK (app_type IN ('claude','codex','grokbuild')),
             proxy_enabled INTEGER NOT NULL DEFAULT 0, listen_address TEXT NOT NULL DEFAULT '127.0.0.1',
             listen_port INTEGER NOT NULL DEFAULT 15721, enable_logging INTEGER NOT NULL DEFAULT 1,
             enabled INTEGER NOT NULL DEFAULT 0, auto_failover_enabled INTEGER NOT NULL DEFAULT 0,
@@ -159,15 +216,6 @@ impl Database {
                 circuit_failure_threshold, circuit_success_threshold, circuit_timeout_seconds,
                 circuit_error_rate_threshold, circuit_min_requests)
                 VALUES ('codex', 3, 60, 120, 600, 4, 2, 60, 0.6, 10)",
-                [],
-            )
-            .map_err(|e| AppError::Database(e.to_string()))?;
-            conn.execute(
-                "INSERT OR IGNORE INTO proxy_config (app_type, max_retries,
-                streaming_first_byte_timeout, streaming_idle_timeout, non_streaming_timeout,
-                circuit_failure_threshold, circuit_success_threshold, circuit_timeout_seconds,
-                circuit_error_rate_threshold, circuit_min_requests)
-                VALUES ('gemini', 5, 60, 120, 600, 4, 2, 60, 0.6, 10)",
                 [],
             )
             .map_err(|e| AppError::Database(e.to_string()))?;
@@ -549,6 +597,16 @@ impl Database {
                         Self::migrate_v17_to_v18(conn)?;
                         Self::set_user_version(conn, 18)?;
                     }
+                    18 => {
+                        log::info!("迁移数据库从 v18 到 v19（移除 OpenClaw/Hermes 遗留数据）");
+                        Self::migrate_v18_to_v19(conn)?;
+                        Self::set_user_version(conn, 19)?;
+                    }
+                    19 => {
+                        log::info!("迁移数据库从 v19 到 v20（移除 Gemini 遗留数据）");
+                        Self::migrate_v19_to_v20(conn)?;
+                        Self::set_user_version(conn, 20)?;
+                    }
                     _ => {
                         return Err(AppError::Database(format!(
                             "未知的数据库版本 {version}，无法迁移到 {SCHEMA_VERSION}"
@@ -603,12 +661,6 @@ impl Database {
             conn,
             "mcp_servers",
             "enabled_codex",
-            "BOOLEAN NOT NULL DEFAULT 0",
-        )?;
-        Self::add_column_if_missing(
-            conn,
-            "mcp_servers",
-            "enabled_gemini",
             "BOOLEAN NOT NULL DEFAULT 0",
         )?;
 
@@ -850,19 +902,6 @@ impl Database {
                 old_cb.4,
             ),
             (
-                "gemini",
-                get_bool("proxy_takeover_gemini"),
-                get_bool("auto_failover_enabled_gemini"),
-                5,
-                old_config.4,
-                old_config.5,
-                old_cb.0,
-                old_cb.1,
-                old_cb.2,
-                old_cb.3,
-                old_cb.4,
-            ),
-            (
                 "grokbuild",
                 false,
                 false,
@@ -880,7 +919,7 @@ impl Database {
         // 创建新表
         conn.execute("DROP TABLE IF EXISTS proxy_config_new", [])?;
         conn.execute("CREATE TABLE proxy_config_new (
-            app_type TEXT PRIMARY KEY CHECK (app_type IN ('claude','codex','gemini','grokbuild')),
+            app_type TEXT PRIMARY KEY CHECK (app_type IN ('claude','codex','grokbuild')),
             proxy_enabled INTEGER NOT NULL DEFAULT 0, listen_address TEXT NOT NULL DEFAULT '127.0.0.1',
             listen_port INTEGER NOT NULL DEFAULT 15721, enable_logging INTEGER NOT NULL DEFAULT 1,
             enabled INTEGER NOT NULL DEFAULT 0, auto_failover_enabled INTEGER NOT NULL DEFAULT 0,
@@ -895,7 +934,7 @@ impl Database {
             created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         )", [])?;
 
-        // 插入三行配置
+        // 插入代理支持的应用配置
         for (app, takeover, failover, retries, fb, idle, cb_f, cb_s, cb_t, cb_r, cb_m) in apps {
             conn.execute(
                 "INSERT INTO proxy_config_new (app_type, proxy_enabled, listen_address, listen_port, enable_logging,
@@ -927,7 +966,7 @@ impl Database {
     fn migrate_skills_table(conn: &Connection) -> Result<(), AppError> {
         // v3 结构（统一管理架构）已经是更高版本的 skills 表：
         // - 主键为 id
-        // - 包含 enabled_claude / enabled_codex / enabled_gemini 等列
+        // - 包含各应用的启用列
         // 在这种情况下，不应再执行 v1 -> v2 的迁移逻辑，否则会因列不匹配而失败。
         if Self::has_column(conn, "skills", "enabled_claude")?
             || Self::has_column(conn, "skills", "id")?
@@ -1010,7 +1049,7 @@ impl Database {
     /// v2 -> v3 迁移：Skills 统一管理架构
     ///
     /// 将 skills 表从 (directory, app_type) 复合主键结构迁移到统一的 id 主键结构，
-    /// 支持三应用启用标志（enabled_claude, enabled_codex, enabled_gemini）。
+    /// 支持各应用启用标志。
     ///
     /// 迁移策略：
     /// 1. 旧数据库只存储安装记录，真正的 skill 文件在文件系统
@@ -1078,7 +1117,6 @@ impl Database {
                 readme_url TEXT,
                 enabled_claude BOOLEAN NOT NULL DEFAULT 0,
                 enabled_codex BOOLEAN NOT NULL DEFAULT 0,
-                enabled_gemini BOOLEAN NOT NULL DEFAULT 0,
                 installed_at INTEGER NOT NULL DEFAULT 0
             )",
             [],
@@ -1257,7 +1295,9 @@ impl Database {
         .map_err(|e| AppError::Database(format!("创建 session_log_sync 表失败: {e}")))?;
 
         // 3. 修正国产模型定价：之前误将 CNY 值存为 USD 字段，统一转换为 USD
-        if Self::table_exists(conn, "model_pricing")? {
+        if Self::table_exists(conn, "model_pricing")?
+            && Self::has_column(conn, "model_pricing", "model_id")?
+        {
             let pricing_fixes: &[(&str, &str, &str, &str, &str)] = &[
                 ("deepseek-v3.2", "0.28", "0.42", "0.028", "0"),
                 ("deepseek-v3.1", "0.55", "1.67", "0.055", "0"),
@@ -1312,6 +1352,14 @@ impl Database {
 
     /// v9 -> v10 迁移：添加 Hermes Agent 支持
     fn migrate_v9_to_v10(conn: &Connection) -> Result<(), AppError> {
+        // 新数据库已经由 create_tables_on_conn 创建最新结构，不能因为从
+        // user_version=0 走历史迁移链而重新加入已移除的 Hermes 列。
+        // v14 之前的存量库没有 enabled_grokbuild，仍需执行本迁移。
+        if Self::has_column(conn, "mcp_servers", "enabled_grokbuild")? {
+            log::info!("v9 -> v10：MCP 表已是当前结构，跳过 Hermes 历史列迁移");
+            return Ok(());
+        }
+
         Self::add_column_if_missing(
             conn,
             "mcp_servers",
@@ -1435,6 +1483,22 @@ impl Database {
     /// v13 -> v14: allow Grok Build to own an independent proxy configuration row.
     fn migrate_v13_to_v14(conn: &Connection) -> Result<(), AppError> {
         if !Self::table_exists(conn, "proxy_config")? {
+            return Ok(());
+        }
+
+        // 新数据库的最新结构已经包含 Grok Build 行；跳过历史重建，避免
+        // 把已移除的 Gemini CHECK 值重新写回 proxy_config。
+        if Self::has_column(conn, "proxy_config", "app_type")?
+            && conn
+                .query_row(
+                    "SELECT COUNT(*) FROM proxy_config WHERE app_type = 'grokbuild'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap_or(0)
+                > 0
+        {
+            log::info!("v13 -> v14：proxy_config 已是当前结构，跳过历史重建");
             return Ok(());
         }
 
@@ -1596,6 +1660,404 @@ impl Database {
                 "INTEGER",
             )?;
         }
+        Ok(())
+    }
+
+    /// v18 -> v19: 移除 OpenClaw / Hermes 遗留数据
+    ///
+    /// 应用已不再内置 OpenClaw 与 Hermes 功能，这里清空这两个 app_type
+    /// 遗留的所有业务数据与用量记录。只 DELETE 行，不 DROP 公共表，保持向前安全。
+    fn migrate_v18_to_v19(conn: &Connection) -> Result<(), AppError> {
+        let removed_apps = ["openclaw", "hermes"];
+
+        // 1. providers 与级联表（provider_endpoints / provider_health 均带
+        //    ON DELETE CASCADE，删除主行即可）。
+        if Self::table_exists(conn, "providers")?
+            && Self::has_column(conn, "providers", "app_type")?
+        {
+            for app in removed_apps {
+                conn.execute(
+                    "DELETE FROM providers WHERE app_type = ?1",
+                    params![app],
+                )
+                .map_err(|e| AppError::Database(e.to_string()))?;
+            }
+        }
+
+        // 2. prompts 表（app_type 维度）
+        if Self::table_exists(conn, "prompts")? && Self::has_column(conn, "prompts", "app_type")? {
+            for app in removed_apps {
+                conn.execute("DELETE FROM prompts WHERE app_type = ?1", params![app])
+                    .map_err(|e| AppError::Database(e.to_string()))?;
+            }
+        }
+
+        // 3. Profiles payload 中按应用分槽的配置。
+        let profiles: Vec<(String, String)> = if Self::table_exists(conn, "profiles")? {
+            conn
+                .prepare("SELECT id, payload FROM profiles")?
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| AppError::Database(e.to_string()))?
+        } else {
+            Vec::new()
+        };
+
+        for (profile_id, config_json) in profiles {
+            if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&config_json) {
+                let changed = remove_legacy_app_slots(&mut value, &removed_apps);
+
+                if changed {
+                    let updated = serde_json::to_string(&value)
+                        .map_err(|e| AppError::Database(e.to_string()))?;
+                    conn.execute(
+                        "UPDATE profiles SET payload = ?1 WHERE id = ?2",
+                        params![updated, profile_id],
+                    )
+                    .map_err(|e| AppError::Database(e.to_string()))?;
+                }
+            }
+        }
+
+        // 4. mcp_servers 的 enabled_hermes 列只影响 Hermes 启用状态，汇总按
+        //    不同客户端维度存储，直接将该列更新为 0（Hermes 不再可用）。
+        if Self::has_column(conn, "mcp_servers", "enabled_hermes")? {
+            conn.execute(
+                "UPDATE mcp_servers SET enabled_hermes = 0 WHERE enabled_hermes != 0",
+                [],
+            )
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        }
+
+        // 5. skills 元数据同步收尾（enabled_hermes 列）
+        if Self::has_column(conn, "skills", "enabled_hermes")? {
+            conn.execute(
+                "UPDATE skills SET enabled_hermes = 0 WHERE enabled_hermes != 0",
+                [],
+            )
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        }
+
+        // 6. 清理附属与用量记录中按 app_type 归属的行。旧版测试库中
+        //    缺失的表或列会由下面的守卫跳过。
+        for table in [
+            "proxy_request_logs",
+            "session_logs",
+            "session_log_sync",
+            "stream_check_logs",
+            "proxy_live_backup",
+            "provider_endpoints",
+            "provider_health",
+        ] {
+            if Self::table_exists(conn, table)?
+                && Self::has_column(conn, table, "app_type")?
+            {
+                for app in removed_apps {
+                    conn.execute(
+                        &format!("DELETE FROM {table} WHERE app_type = ?1"),
+                        params![app],
+                    )
+                    .map_err(|e| AppError::Database(e.to_string()))?;
+                }
+            }
+        }
+        // 一些表把 app_type 存为 provider 前缀或独立 app 字段，兜底清理。
+        if Self::table_exists(conn, "usage_daily_rollups")?
+            && Self::has_column(conn, "usage_daily_rollups", "app_type")?
+        {
+            for app in removed_apps {
+                conn.execute(
+                    "DELETE FROM usage_daily_rollups WHERE app_type = ?1",
+                    params![app],
+                )
+                .map_err(|e| AppError::Database(e.to_string()))?;
+            }
+        }
+        if Self::table_exists(conn, "provider_usage_logs")?
+            && Self::has_column(conn, "provider_usage_logs", "app_type")?
+        {
+            for app in removed_apps {
+                conn.execute(
+                    "DELETE FROM provider_usage_logs WHERE app_type = ?1",
+                    params![app],
+                )
+                .map_err(|e| AppError::Database(e.to_string()))?;
+            }
+        }
+        if Self::table_exists(conn, "session_usage_ledger")?
+            && Self::has_column(conn, "session_usage_ledger", "app_type")?
+        {
+            for app in removed_apps {
+                conn.execute(
+                    "DELETE FROM session_usage_ledger WHERE app_type = ?1",
+                    params![app],
+                )
+                .map_err(|e| AppError::Database(e.to_string()))?;
+            }
+        }
+
+        // session_log_sync 和 session_usage_dedup 的旧版结构没有 app_type，
+        // 只能依据其来源/路径清理已移除客户端的同步游标与去重账本。
+        if Self::table_exists(conn, "session_log_sync")?
+            && Self::has_column(conn, "session_log_sync", "file_path")?
+        {
+            conn.execute(
+                "DELETE FROM session_log_sync
+                 WHERE lower(file_path) LIKE '%openclaw%'
+                    OR lower(file_path) LIKE '%hermes%'",
+                [],
+            )
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        }
+        if Self::table_exists(conn, "session_usage_dedup")?
+            && Self::has_column(conn, "session_usage_dedup", "data_source")?
+        {
+            conn.execute(
+                "DELETE FROM session_usage_dedup
+                 WHERE lower(data_source) LIKE '%openclaw%'
+                    OR lower(data_source) LIKE '%hermes%'",
+                [],
+            )
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        }
+
+        Ok(())
+    }
+
+    /// v19 -> v20: 移除 Gemini 遗留数据
+    ///
+    /// Gemini 已不再是受支持的应用。升级时清理所有按应用归属的数据、
+    /// Gemini 会话用量以及模型定价，避免旧配置在新版本中重新出现。
+    fn migrate_v19_to_v20(conn: &Connection) -> Result<(), AppError> {
+        // Gemini Native 旧版作为 Claude 供应商保存，不能仅按 app_type 清理。
+        // 先记录这些供应商 ID，稍后同步清理其子表、用量和 Profile 引用。
+        let legacy_claude_provider_ids: Vec<String> =
+            if Self::table_exists(conn, "providers")?
+                && Self::has_column(conn, "providers", "app_type")?
+                && Self::has_column(conn, "providers", "meta")?
+                && Self::has_column(conn, "providers", "settings_config")?
+            {
+                let mut stmt = conn
+                    .prepare(
+                        "SELECT id FROM providers
+                         WHERE app_type = 'claude'
+                           AND (
+                               lower(meta) LIKE '%gemini_native%'
+                               OR lower(settings_config) LIKE '%gemini_api_key%'
+                               OR lower(settings_config) LIKE '%google_gemini_base_url%'
+                           )",
+                    )
+                    .map_err(|e| AppError::Database(e.to_string()))?;
+                let ids = stmt
+                    .query_map([], |row| row.get(0))
+                    .map_err(|e| AppError::Database(e.to_string()))?
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|e| AppError::Database(e.to_string()))?;
+                ids
+            } else {
+                Vec::new()
+            };
+
+        for provider_id in &legacy_claude_provider_ids {
+            conn.execute(
+                "DELETE FROM providers WHERE app_type = 'claude' AND id = ?1",
+                params![provider_id],
+            )
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        }
+
+        for table in [
+            "providers",
+            "prompts",
+            "proxy_config",
+            "provider_endpoints",
+            "provider_health",
+        ] {
+            if Self::table_exists(conn, table)?
+                && Self::has_column(conn, table, "app_type")?
+            {
+                conn.execute(
+                    &format!("DELETE FROM {table} WHERE app_type = ?1"),
+                    params!["gemini"],
+                )
+                .map_err(|e| AppError::Database(e.to_string()))?;
+            }
+        }
+
+        // 删除旧 Gemini Native Claude 供应商的附属行（外键级联关闭时也不留孤儿）。
+        for table in [
+            "provider_endpoints",
+            "provider_health",
+            "proxy_request_logs",
+            "session_logs",
+            "stream_check_logs",
+        ] {
+            if Self::table_exists(conn, table)? && Self::has_column(conn, table, "provider_id")? {
+                for provider_id in &legacy_claude_provider_ids {
+                    conn.execute(
+                        &format!("DELETE FROM {table} WHERE provider_id = ?1"),
+                        params![provider_id],
+                    )
+                    .map_err(|e| AppError::Database(e.to_string()))?;
+                }
+            }
+        }
+
+        let profiles: Vec<(String, String)> = if Self::table_exists(conn, "profiles")? {
+            conn
+                .prepare("SELECT id, payload FROM profiles")?
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| AppError::Database(e.to_string()))?
+        } else {
+            Vec::new()
+        };
+
+        for (profile_id, config_json) in profiles {
+            if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&config_json) {
+                let mut changed = remove_legacy_app_slots(&mut value, &["gemini"]);
+                changed |= remove_legacy_provider_ids_from_profile(
+                    &mut value,
+                    "claude",
+                    &legacy_claude_provider_ids,
+                );
+
+                if changed {
+                    let updated = serde_json::to_string(&value)
+                        .map_err(|e| AppError::Database(e.to_string()))?;
+                    conn.execute(
+                        "UPDATE profiles SET payload = ?1 WHERE id = ?2",
+                        params![updated, profile_id],
+                    )
+                    .map_err(|e| AppError::Database(e.to_string()))?;
+                }
+            }
+        }
+
+        if Self::table_exists(conn, "settings")? {
+            let universal_json = conn
+                .query_row(
+                    "SELECT value FROM settings WHERE key = ?1",
+                    params!["universal_providers"],
+                    |row| row.get::<_, Option<String>>(0),
+                )
+                .optional()?
+                .flatten();
+
+            if let Some(universal_json) = universal_json {
+                if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&universal_json) {
+                    if remove_legacy_universal_provider_slots(&mut value, &["gemini"]) {
+                        let updated = serde_json::to_string(&value)
+                            .map_err(|e| AppError::Database(e.to_string()))?;
+                        conn.execute(
+                            "UPDATE settings SET value = ?1 WHERE key = 'universal_providers'",
+                            params![updated],
+                        )
+                        .map_err(|e| AppError::Database(e.to_string()))?;
+                    }
+                }
+            }
+        }
+
+        for table in [
+            "proxy_request_logs",
+            "session_logs",
+            "session_log_sync",
+            "usage_daily_rollups",
+            "provider_usage_logs",
+            "session_usage_ledger",
+            "stream_check_logs",
+            "proxy_live_backup",
+        ] {
+            if Self::table_exists(conn, table)?
+                && Self::has_column(conn, table, "app_type")?
+            {
+                conn.execute(
+                    &format!("DELETE FROM {table} WHERE app_type = ?1"),
+                    params!["gemini"],
+                )
+                .map_err(|e| AppError::Database(e.to_string()))?;
+            }
+        }
+
+        // Gemini Native 旧请求可能以 Claude app_type 记账，按模型 ID 兜底清理。
+        for (table, column) in [
+            ("proxy_request_logs", "model"),
+            ("session_logs", "model"),
+            ("usage_daily_rollups", "model"),
+            ("stream_check_logs", "model_used"),
+        ] {
+            if Self::table_exists(conn, table)? && Self::has_column(conn, table, column)? {
+                let sql = format!(
+                    "DELETE FROM {table}
+                     WHERE lower({column}) IN ('gemini', 'google/gemini', 'models/gemini')
+                        OR lower({column}) LIKE 'gemini-%'
+                        OR lower({column}) LIKE 'google/gemini-%'
+                        OR lower({column}) LIKE 'models/gemini-%'"
+                );
+                conn.execute(&sql, [])
+                    .map_err(|e| AppError::Database(e.to_string()))?;
+            }
+        }
+        if Self::table_exists(conn, "proxy_live_backup")?
+            && Self::has_column(conn, "proxy_live_backup", "original_config")?
+        {
+            conn.execute(
+                "DELETE FROM proxy_live_backup
+                 WHERE lower(original_config) LIKE '%gemini_native%'
+                    OR lower(original_config) LIKE '%gemini_api_key%'
+                    OR lower(original_config) LIKE '%google_gemini_base_url%'",
+                [],
+            )
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        }
+
+        // Gemini 的旧会话表没有 app_type，按来源路径/数据源清理同步状态。
+        if Self::table_exists(conn, "session_log_sync")?
+            && Self::has_column(conn, "session_log_sync", "file_path")?
+        {
+            conn.execute(
+                "DELETE FROM session_log_sync WHERE lower(file_path) LIKE '%gemini%'",
+                [],
+            )
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        }
+        if Self::table_exists(conn, "session_usage_dedup")?
+            && Self::has_column(conn, "session_usage_dedup", "data_source")?
+        {
+            conn.execute(
+                "DELETE FROM session_usage_dedup WHERE lower(data_source) LIKE '%gemini%'",
+                [],
+            )
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        }
+
+        if Self::table_exists(conn, "model_pricing")?
+            && Self::has_column(conn, "model_pricing", "model_id")?
+        {
+            conn.execute(
+                "DELETE FROM model_pricing
+                 WHERE lower(model_id) IN ('gemini', 'google/gemini', 'models/gemini')
+                    OR lower(model_id) LIKE 'gemini-%'
+                    OR lower(model_id) LIKE 'google/gemini-%'
+                    OR lower(model_id) LIKE 'models/gemini-%'",
+                [],
+            )
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        }
+
+        for table in ["mcp_servers", "skills"] {
+            if Self::table_exists(conn, table)?
+                && Self::has_column(conn, table, "enabled_gemini")?
+            {
+                conn.execute(
+                    &format!("UPDATE {table} SET enabled_gemini = 0 WHERE enabled_gemini != 0"),
+                    [],
+                )
+                .map_err(|e| AppError::Database(e.to_string()))?;
+            }
+        }
+
         Ok(())
     }
 
@@ -1956,122 +2418,6 @@ impl Database {
             ("gpt-4.1", "GPT-4.1", "2", "8", "0.50", "0"),
             ("gpt-4.1-mini", "GPT-4.1 Mini", "0.40", "1.60", "0.10", "0"),
             ("gpt-4.1-nano", "GPT-4.1 Nano", "0.10", "0.40", "0.025", "0"),
-            // Gemini 3.7 系列
-            // 录的是介绍价（官方公告 + ai.google.dev 价表 + models.dev 三源一致）。
-            // ⚠️ 介绍价 2026-12-31 到期，2027-01-01 起恢复 1.50/7.50/0.15（= 3.6 Flash 现价）。
-            // 到期后需走 seed + repair 双写改回；届时 models.dev 会先更新，
-            // /jason-update-model 审计的 A 段会自动报出这一行作为提醒——
-            // 因此这一行刻意不进 audit-ignore.json，勿加豁免（会屏蔽掉该提醒）。
-            (
-                "gemini-3.7-flash",
-                "Gemini 3.7 Flash",
-                "0.75",
-                "3.75",
-                "0.075",
-                "0",
-            ),
-            // Gemini 3.6 系列
-            (
-                "gemini-3.6-flash",
-                "Gemini 3.6 Flash",
-                "1.50",
-                "7.50",
-                "0.15",
-                "0",
-            ),
-            // Gemini 3.5 系列
-            (
-                "gemini-3.5-flash",
-                "Gemini 3.5 Flash",
-                "1.50",
-                "9.00",
-                "0.15",
-                "0",
-            ),
-            (
-                "gemini-3.5-flash-lite",
-                "Gemini 3.5 Flash Lite",
-                "0.30",
-                "2.50",
-                "0.03",
-                "0",
-            ),
-            // Gemini 3.1 系列
-            (
-                "gemini-3.1-pro-preview",
-                "Gemini 3.1 Pro Preview",
-                "2",
-                "12",
-                "0.20",
-                "0",
-            ),
-            (
-                "gemini-3.1-flash-lite",
-                "Gemini 3.1 Flash Lite",
-                "0.25",
-                "1.50",
-                "0.025",
-                "0",
-            ),
-            (
-                "gemini-3.1-flash-lite-preview",
-                "Gemini 3.1 Flash Lite Preview",
-                "0.25",
-                "1.50",
-                "0.025",
-                "0",
-            ),
-            // Gemini 3 系列
-            (
-                "gemini-3-pro-preview",
-                "Gemini 3 Pro Preview",
-                "2",
-                "12",
-                "0.2",
-                "0",
-            ),
-            (
-                "gemini-3-flash-preview",
-                "Gemini 3 Flash Preview",
-                "0.5",
-                "3",
-                "0.05",
-                "0",
-            ),
-            // Gemini 2.5 系列
-            (
-                "gemini-2.5-pro",
-                "Gemini 2.5 Pro",
-                "1.25",
-                "10",
-                "0.125",
-                "0",
-            ),
-            (
-                "gemini-2.5-flash",
-                "Gemini 2.5 Flash",
-                "0.3",
-                "2.5",
-                "0.03",
-                "0",
-            ),
-            (
-                "gemini-2.5-flash-lite",
-                "Gemini 2.5 Flash Lite",
-                "0.10",
-                "0.40",
-                "0.01",
-                "0",
-            ),
-            // Gemini 2.0 系列
-            (
-                "gemini-2.0-flash",
-                "Gemini 2.0 Flash",
-                "0.10",
-                "0.40",
-                "0.025",
-                "0",
-            ),
             // StepFun 系列
             (
                 "step-3.7-flash",
@@ -3386,7 +3732,7 @@ mod tests {
     }
 
     #[test]
-    fn migrate_v15_to_v16_resets_only_codex_session_usage() -> Result<(), AppError> {
+    fn migrate_v15_to_v16_resets_codex_and_removes_legacy_gemini_usage() -> Result<(), AppError> {
         let conn = Connection::open_in_memory()?;
         Database::create_tables_on_conn(&conn)?;
         conn.execute_batch(
@@ -3422,7 +3768,7 @@ mod tests {
             [],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )?;
-        assert_eq!(counts, (0, 1, 0, 1));
+        assert_eq!(counts, (0, 0, 0, 0));
         Ok(())
     }
 
@@ -3481,6 +3827,144 @@ mod tests {
         )?;
         assert_eq!(byte_offset, None, "存量行的字节游标必须为 NULL");
         assert_eq!(fingerprint, None, "存量行的尾部指纹必须为 NULL");
+        Ok(())
+    }
+
+    #[test]
+    fn legacy_app_cleanup_removes_rows_from_all_owned_tables() -> Result<(), AppError> {
+        let conn = Connection::open_in_memory()?;
+        Database::create_tables_on_conn(&conn)?;
+        conn.execute_batch(
+            r#"
+            INSERT INTO providers (id, app_type, name, settings_config, meta) VALUES
+                ('gemini-provider', 'gemini', 'Gemini', '{}', '{}'),
+                ('openclaw-provider', 'openclaw', 'OpenClaw', '{}', '{}'),
+                ('hermes-provider', 'hermes', 'Hermes', '{}', '{}'),
+                ('claude-provider', 'claude', 'Claude', '{}', '{}'),
+                ('claude-gemini-native', 'claude', 'Gemini Native',
+                 '{"env":{"GEMINI_API_KEY":"legacy"}}',
+                 '{"apiFormat":"gemini_native"}');
+            INSERT INTO provider_endpoints (provider_id, app_type, url) VALUES
+                ('gemini-provider', 'gemini', 'https://gemini.example'),
+                ('openclaw-provider', 'openclaw', 'https://openclaw.example'),
+                ('claude-gemini-native', 'claude', 'https://gemini.example');
+            INSERT INTO provider_health
+                (provider_id, app_type, updated_at) VALUES
+                ('gemini-provider', 'gemini', 'now'),
+                ('openclaw-provider', 'openclaw', 'now'),
+                ('claude-gemini-native', 'claude', 'now');
+            INSERT INTO stream_check_logs
+                (provider_id, provider_name, app_type, status, success, message, tested_at)
+            VALUES
+                ('gemini-provider', 'Gemini', 'gemini', 'failed', 0, 'legacy', 1),
+                ('openclaw-provider', 'OpenClaw', 'openclaw', 'failed', 0, 'legacy', 1),
+                ('claude-gemini-native', 'Gemini Native', 'claude', 'failed', 0, 'legacy', 1);
+            INSERT INTO proxy_live_backup (app_type, original_config, backed_up_at) VALUES
+                ('gemini', '{}', 'now'),
+                ('openclaw', '{}', 'now'),
+                ('claude', '{"env":{"GEMINI_API_KEY":"legacy"}}', 'now');
+            INSERT INTO proxy_request_logs
+                (request_id, provider_id, app_type, model, latency_ms, status_code, created_at)
+            VALUES
+                ('gemini-request', 'gemini-provider', 'gemini', 'gemini-2.5-pro', 1, 200, 1),
+                ('openclaw-request', 'openclaw-provider', 'openclaw', 'claude', 1, 200, 1),
+                ('claude-request', 'claude-provider', 'claude', 'claude-sonnet', 1, 200, 1),
+                ('claude-gemini-request', 'claude-gemini-native', 'claude', 'gemini-2.5-pro', 1, 200, 1);
+            INSERT INTO usage_daily_rollups (date, app_type, provider_id, model) VALUES
+                ('2026-08-01', 'gemini', 'gemini-provider', 'gemini-2.5-pro'),
+                ('2026-08-01', 'openclaw', 'openclaw-provider', 'claude'),
+                ('2026-08-01', 'claude', 'claude-provider', 'claude-sonnet'),
+                ('2026-08-01', 'claude', 'claude-gemini-native', 'gemini-2.5-pro');
+            INSERT INTO model_pricing
+                (model_id, display_name, input_cost_per_million, output_cost_per_million)
+            VALUES
+                ('gemini-2.5-pro', 'Gemini', '1', '2'),
+                ('google/gemini-2.5-flash', 'Gemini Flash', '1', '2'),
+                ('claude-sonnet', 'Claude', '1', '2');
+            INSERT INTO profiles (id, name, payload) VALUES
+                ('profile-1', 'Legacy',
+                 '{"providers":{"gemini":{"id":"g"},"openclaw":{"id":"o"},"claude":"claude-gemini-native","codex":"c"}}');
+            INSERT INTO settings (key, value) VALUES
+                ('universal_providers',
+                 '{"u1":{"apps":{"gemini":true,"claude":true},"models":{"gemini":{"model":"gemini-2.5-pro"},"claude":{"model":"claude-sonnet"}}}}');
+            "#,
+        )?;
+        Database::set_user_version(&conn, 18)?;
+
+        Database::apply_schema_migrations_on_conn(&conn)?;
+
+        for table in [
+            "providers",
+            "provider_endpoints",
+            "provider_health",
+            "stream_check_logs",
+            "proxy_live_backup",
+            "proxy_request_logs",
+            "usage_daily_rollups",
+        ] {
+            let removed: i64 = conn.query_row(
+                &format!("SELECT COUNT(*) FROM {table} WHERE app_type IN ('gemini', 'openclaw', 'hermes')"),
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(removed, 0, "legacy rows remain in {table}");
+        }
+
+        let legacy_provider_count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM providers WHERE id = 'claude-gemini-native'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(legacy_provider_count, 0);
+        for table in [
+            "provider_endpoints",
+            "provider_health",
+            "proxy_request_logs",
+            "usage_daily_rollups",
+            "stream_check_logs",
+        ] {
+            let legacy_rows: i64 = conn.query_row(
+                &format!(
+                    "SELECT COUNT(*) FROM {table} WHERE provider_id = 'claude-gemini-native'"
+                ),
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(legacy_rows, 0, "legacy provider rows remain in {table}");
+        }
+
+        let pricing_count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM model_pricing
+             WHERE lower(model_id) LIKE 'gemini-%'
+                OR lower(model_id) LIKE 'google/gemini-%'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(pricing_count, 0);
+
+        let profile_payload: String = conn.query_row(
+            "SELECT payload FROM profiles WHERE id = 'profile-1'",
+            [],
+            |row| row.get(0),
+        )?;
+        let profile: serde_json::Value = serde_json::from_str(&profile_payload)
+            .expect("parse cleaned profile payload");
+        assert!(profile["providers"].get("gemini").is_none());
+        assert!(profile["providers"].get("openclaw").is_none());
+        assert!(profile["providers"].get("claude").is_none());
+        assert!(profile["providers"].get("codex").is_some());
+
+        let universal_payload: String = conn.query_row(
+            "SELECT value FROM settings WHERE key = 'universal_providers'",
+            [],
+            |row| row.get(0),
+        )?;
+        let universal: serde_json::Value = serde_json::from_str(&universal_payload)
+            .expect("parse cleaned universal providers");
+        assert!(universal["u1"]["apps"].get("gemini").is_none());
+        assert!(universal["u1"]["models"].get("gemini").is_none());
+        assert!(universal["u1"]["apps"].get("claude").is_some());
+
         Ok(())
     }
 }

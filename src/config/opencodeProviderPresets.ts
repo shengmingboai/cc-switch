@@ -24,7 +24,6 @@ export const opencodeNpmPackages = [
   { value: "@ai-sdk/openai-compatible", label: "OpenAI Compatible" },
   { value: "@ai-sdk/anthropic", label: "Anthropic" },
   { value: "@ai-sdk/amazon-bedrock", label: "Amazon Bedrock" },
-  { value: "@ai-sdk/google", label: "Google (Gemini)" },
 ] as const;
 
 export interface PresetModelVariant {
@@ -79,48 +78,6 @@ export const OPENCODE_PRESET_MODEL_VARIANTS: Record<
       id: "step-3.5-flash",
       name: "Step 3.5 Flash",
       contextLimit: 262144,
-    },
-  ],
-  "@ai-sdk/google": [
-    {
-      id: "gemini-2.5-flash-lite",
-      name: "Gemini 2.5 Flash Lite",
-      contextLimit: 1048576,
-      outputLimit: 65536,
-      modalities: {
-        input: ["text", "image", "pdf", "video", "audio"],
-        output: ["text"],
-      },
-      variants: {
-        auto: {
-          thinkingConfig: { includeThoughts: true, thinkingBudget: -1 },
-        },
-        "no-thinking": { thinkingConfig: { thinkingBudget: 0 } },
-      },
-    },
-    {
-      id: "gemini-3.6-flash",
-      name: "Gemini 3.6 Flash",
-      contextLimit: 1048576,
-      outputLimit: 65536,
-      modalities: {
-        input: ["text", "image", "pdf", "video", "audio"],
-        output: ["text"],
-      },
-      variants: {
-        minimal: {
-          thinkingConfig: { includeThoughts: true, thinkingLevel: "minimal" },
-        },
-        low: {
-          thinkingConfig: { includeThoughts: true, thinkingLevel: "low" },
-        },
-        medium: {
-          thinkingConfig: { includeThoughts: true, thinkingLevel: "medium" },
-        },
-        high: {
-          thinkingConfig: { includeThoughts: true, thinkingLevel: "high" },
-        },
-      },
     },
   ],
   "@ai-sdk/openai": [
@@ -242,30 +199,6 @@ export const OPENCODE_PRESET_MODEL_VARIANTS: Record<
       contextLimit: 200000,
       outputLimit: 64000,
       modalities: { input: ["text", "image", "pdf"], output: ["text"] },
-    },
-    {
-      id: "gemini-claude-opus-4-5-thinking",
-      name: "Antigravity - Claude Opus 4.5",
-      contextLimit: 200000,
-      outputLimit: 64000,
-      modalities: { input: ["text", "image", "pdf"], output: ["text"] },
-      variants: {
-        low: { effort: "low" },
-        medium: { effort: "medium" },
-        high: { effort: "high" },
-      },
-    },
-    {
-      id: "gemini-claude-sonnet-4-5-thinking",
-      name: "Antigravity - Claude Sonnet 4.5",
-      contextLimit: 200000,
-      outputLimit: 64000,
-      modalities: { input: ["text", "image", "pdf"], output: ["text"] },
-      variants: {
-        low: { thinking: { budgetTokens: 5000, type: "enabled" } },
-        medium: { thinking: { budgetTokens: 13000, type: "enabled" } },
-        high: { thinking: { budgetTokens: 18000, type: "enabled" } },
-      },
     },
   ],
 };
@@ -2021,9 +1954,6 @@ export const opencodeProviderPresets: OpenCodeProviderPreset[] = [
         "anthropic/claude-sonnet-5": { name: "Claude Sonnet 5" },
         "openai/gpt-5.3-codex": { name: "GPT-5.3 Codex" },
         "openai/gpt-5.2": { name: "GPT-5.2" },
-        "google/gemini-3.6-flash": {
-          name: "Gemini 3.6 Flash",
-        },
         "qwen/qwen3-coder-480b": { name: "Qwen3 Coder 480B" },
       },
     },

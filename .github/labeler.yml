@@ -53,7 +53,6 @@ mcp:
           - "src/lib/api/mcp.ts"
           - "src-tauri/src/mcp/**"
           - "src-tauri/src/claude_mcp.rs"
-          - "src-tauri/src/gemini_mcp.rs"
           - "src-tauri/src/commands/mcp.rs"
 
 skills:

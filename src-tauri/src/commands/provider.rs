@@ -959,10 +959,6 @@ pub fn get_opencode_live_provider_ids() -> Result<Vec<String>, String> {
         .map_err(|e| e.to_string())
 }
 
-// ============================================================================
-// OpenClaw 专属命令 → 已迁移至 commands/openclaw.rs
-// ============================================================================
-
 #[cfg(test)]
 mod import_claude_desktop_tests {
     use super::suggested_claude_desktop_routes;

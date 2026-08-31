@@ -42,10 +42,6 @@ fn get_keywords_for_app(app: &str) -> Vec<EnvKeyword> {
     match app.to_lowercase().as_str() {
         "claude" => vec![EnvKeyword::Prefix("ANTHROPIC")],
         "codex" => vec![EnvKeyword::Prefix("OPENAI")],
-        "gemini" => vec![
-            EnvKeyword::Prefix("GEMINI"),
-            EnvKeyword::Prefix("GOOGLE_GEMINI"),
-        ],
         "grokbuild" | "grok" => vec![
             EnvKeyword::Exact("XAI_API_KEY"),
             EnvKeyword::Exact("GROK_DEFAULT_MODEL"),
@@ -185,13 +181,6 @@ mod tests {
         assert_eq!(
             get_keywords_for_app("codex"),
             vec![EnvKeyword::Prefix("OPENAI")]
-        );
-        assert_eq!(
-            get_keywords_for_app("gemini"),
-            vec![
-                EnvKeyword::Prefix("GEMINI"),
-                EnvKeyword::Prefix("GOOGLE_GEMINI")
-            ]
         );
         assert_eq!(
             get_keywords_for_app("grokbuild"),

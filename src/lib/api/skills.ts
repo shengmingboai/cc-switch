@@ -6,11 +6,8 @@ export type AppType =
   | "claude"
   | "claude-desktop"
   | "codex"
-  | "gemini"
   | "grokbuild"
   | "opencode"
-  | "openclaw"
-  | "hermes"
   | "pi";
 
 /** Skill 应用启用状态 */
@@ -18,11 +15,8 @@ export interface SkillApps {
   claude: boolean;
   "claude-desktop"?: boolean;
   codex: boolean;
-  gemini: boolean;
   grokbuild?: boolean;
   opencode: boolean;
-  openclaw: boolean;
-  hermes: boolean;
   pi: boolean;
 }
 

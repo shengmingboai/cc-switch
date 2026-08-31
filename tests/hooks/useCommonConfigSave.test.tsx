@@ -1,7 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useCodexCommonConfig } from "@/components/providers/forms/hooks/useCodexCommonConfig";
-import { useGeminiCommonConfig } from "@/components/providers/forms/hooks/useGeminiCommonConfig";
 
 const getCommonConfigSnippetMock = vi.fn();
 const setCommonConfigSnippetMock = vi.fn();
@@ -148,31 +147,4 @@ describe("common config snippet saving", () => {
     expect(result.current.useCommonConfig).toBe(false);
   });
 
-  it("does not persist an invalid Gemini common config snippet", async () => {
-    const onEnvChange = vi.fn();
-    const { result } = renderHook(() =>
-      useGeminiCommonConfig({
-        envValue: "",
-        onEnvChange,
-        envStringToObj: () => ({}),
-        envObjToString: () => "",
-      }),
-    );
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    let saved = false;
-    act(() => {
-      saved = result.current.handleCommonConfigSnippetChange(
-        JSON.stringify({ GEMINI_MODEL: 123 }),
-      );
-    });
-
-    expect(saved).toBe(false);
-    expect(setCommonConfigSnippetMock).not.toHaveBeenCalled();
-    expect(onEnvChange).not.toHaveBeenCalled();
-    expect(result.current.commonConfigError).toBe(
-      "geminiConfig.commonConfigInvalidValues",
-    );
-  });
 });

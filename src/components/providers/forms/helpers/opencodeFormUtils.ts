@@ -19,18 +19,6 @@ export const CODEX_DEFAULT_CONFIG = JSON.stringify(
   null,
   2,
 );
-export const GEMINI_DEFAULT_CONFIG = JSON.stringify(
-  {
-    env: {
-      GOOGLE_GEMINI_BASE_URL: "",
-      GEMINI_API_KEY: "",
-      GEMINI_MODEL: "gemini-3.6-flash",
-    },
-  },
-  null,
-  2,
-);
-
 export const OPENCODE_DEFAULT_NPM = "@ai-sdk/openai-compatible";
 export const OPENCODE_DEFAULT_CONFIG = JSON.stringify(
   {
@@ -55,17 +43,6 @@ export const OPENCODE_KNOWN_OPTION_KEYS = [
 // collide with a legitimate custom header from an existing configuration.
 export { REQUEST_HEADER_DRAFT_PREFIX as OPENCODE_HEADER_DRAFT_PREFIX } from "./requestHeaders";
 export const OPENCODE_EXTRA_OPTION_DRAFT_PREFIX = "draft-option:";
-
-export const OPENCLAW_DEFAULT_CONFIG = JSON.stringify(
-  {
-    baseUrl: "",
-    apiKey: "",
-    api: "openai-completions",
-    models: [],
-  },
-  null,
-  2,
-);
 
 // ── Pure functions ───────────────────────────────────────────────────
 

@@ -10,11 +10,8 @@ export interface DeepLinkImportRequest {
   app?:
     | "claude"
     | "codex"
-    | "gemini"
     | "grokbuild"
     | "opencode"
-    | "openclaw"
-    | "hermes"
     | "pi";
   name?: string;
   enabled?: boolean;

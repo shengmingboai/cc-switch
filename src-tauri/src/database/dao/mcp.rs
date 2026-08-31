@@ -9,7 +9,7 @@ use indexmap::IndexMap;
 use rusqlite::{params, OptionalExtension, Row};
 
 const MCP_SERVER_SELECT: &str =
-    "SELECT id, name, server_config, description, homepage, docs, tags, enabled_claude, enabled_codex, enabled_gemini, enabled_grokbuild, enabled_opencode, enabled_hermes FROM mcp_servers";
+    "SELECT id, name, server_config, description, homepage, docs, tags, enabled_claude, enabled_codex, enabled_grokbuild, enabled_opencode FROM mcp_servers";
 
 fn row_to_mcp_server(row: &Row<'_>) -> rusqlite::Result<(String, McpServer)> {
     let id: String = row.get(0)?;
@@ -21,10 +21,8 @@ fn row_to_mcp_server(row: &Row<'_>) -> rusqlite::Result<(String, McpServer)> {
     let tags_str: String = row.get(6)?;
     let enabled_claude: bool = row.get(7)?;
     let enabled_codex: bool = row.get(8)?;
-    let enabled_gemini: bool = row.get(9)?;
-    let enabled_grokbuild: bool = row.get(10)?;
-    let enabled_opencode: bool = row.get(11)?;
-    let enabled_hermes: bool = row.get(12)?;
+    let enabled_grokbuild: bool = row.get(9)?;
+    let enabled_opencode: bool = row.get(10)?;
 
     let server = serde_json::from_str(&server_config_str).unwrap_or_default();
     let tags = serde_json::from_str(&tags_str).unwrap_or_default();
@@ -38,10 +36,8 @@ fn row_to_mcp_server(row: &Row<'_>) -> rusqlite::Result<(String, McpServer)> {
             apps: McpApps {
                 claude: enabled_claude,
                 codex: enabled_codex,
-                gemini: enabled_gemini,
                 grokbuild: enabled_grokbuild,
                 opencode: enabled_opencode,
-                hermes: enabled_hermes,
             },
             description,
             homepage,
@@ -86,12 +82,10 @@ impl Database {
         let column = match app {
             AppType::Claude => Some("enabled_claude"),
             AppType::Codex => Some("enabled_codex"),
-            AppType::Gemini => Some("enabled_gemini"),
             AppType::GrokBuild => Some("enabled_grokbuild"),
             AppType::OpenCode => Some("enabled_opencode"),
-            AppType::Hermes => Some("enabled_hermes"),
             // These applications intentionally have no MCP flag in the SSOT.
-            AppType::ClaudeDesktop | AppType::OpenClaw | AppType::Pi => None,
+            AppType::ClaudeDesktop | AppType::Pi => None,
         };
 
         if let Some(column) = column {
@@ -120,8 +114,8 @@ impl Database {
         conn.execute(
             "INSERT OR REPLACE INTO mcp_servers (
                 id, name, server_config, description, homepage, docs, tags,
-                enabled_claude, enabled_codex, enabled_gemini, enabled_grokbuild, enabled_opencode, enabled_hermes
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                enabled_claude, enabled_codex, enabled_grokbuild, enabled_opencode
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 server.id,
                 server.name,
@@ -135,10 +129,8 @@ impl Database {
                     .map_err(|e| AppError::Database(format!("Failed to serialize tags: {e}")))?,
                 server.apps.claude,
                 server.apps.codex,
-                server.apps.gemini,
                 server.apps.grokbuild,
                 server.apps.opencode,
-                server.apps.hermes,
             ],
         )
         .map_err(|e| AppError::Database(e.to_string()))?;
@@ -167,7 +159,7 @@ mod tests {
             name: "Shared Server".to_string(),
             server: json!({ "command": "echo", "args": ["hello"] }),
             apps: McpApps {
-                gemini: true,
+                claude: true,
                 ..McpApps::default()
             },
             description: Some("description".to_string()),
@@ -187,7 +179,6 @@ mod tests {
             .expect("enable Claude")
             .expect("server exists");
         assert!(after_claude.apps.claude);
-        assert!(after_claude.apps.gemini);
 
         let after_codex = db
             .update_mcp_server_app_enabled("shared-server", &AppType::Codex, true)
@@ -195,7 +186,6 @@ mod tests {
             .expect("server exists");
         assert!(after_codex.apps.claude);
         assert!(after_codex.apps.codex);
-        assert!(after_codex.apps.gemini);
         assert_eq!(after_codex.description.as_deref(), Some("description"));
         assert_eq!(after_codex.tags, vec!["shared"]);
 
@@ -236,7 +226,6 @@ mod tests {
             .expect("stored server");
         assert!(stored.apps.claude);
         assert!(stored.apps.codex);
-        assert!(stored.apps.gemini);
     }
 
     #[test]
@@ -257,7 +246,7 @@ mod tests {
         let original = test_server();
         db.save_mcp_server(&original).expect("seed server");
 
-        for app in [AppType::ClaudeDesktop, AppType::OpenClaw, AppType::Pi] {
+        for app in [AppType::ClaudeDesktop, AppType::Pi] {
             let returned = db
                 .update_mcp_server_app_enabled("shared-server", &app, true)
                 .expect("toggle unsupported app")

@@ -216,11 +216,8 @@ const UnifiedSkillsPanel = React.forwardRef<
       claude: 0,
       "claude-desktop": 0,
       codex: 0,
-      gemini: 0,
       grokbuild: 0,
       opencode: 0,
-      openclaw: 0,
-      hermes: 0,
       pi: 0,
     };
     if (!skills) return counts;
@@ -1043,11 +1040,8 @@ const ImportSkillsDialog: React.FC<ImportSkillsDialogProps> = ({
         {
           claude: skill.foundIn.includes("claude"),
           codex: skill.foundIn.includes("codex"),
-          gemini: skill.foundIn.includes("gemini"),
           grokbuild: skill.foundIn.includes("grokbuild"),
           opencode: skill.foundIn.includes("opencode"),
-          openclaw: false,
-          hermes: skill.foundIn.includes("hermes"),
           pi: false,
         },
       ]),
@@ -1071,11 +1065,8 @@ const ImportSkillsDialog: React.FC<ImportSkillsDialogProps> = ({
         apps: selectedApps[directory] ?? {
           claude: false,
           codex: false,
-          gemini: false,
           grokbuild: false,
           opencode: false,
-          openclaw: false,
-          hermes: false,
           pi: false,
         },
       })),
@@ -1116,11 +1107,8 @@ const ImportSkillsDialog: React.FC<ImportSkillsDialogProps> = ({
                         selectedApps[skill.directory] ?? {
                           claude: false,
                           codex: false,
-                          gemini: false,
                           grokbuild: false,
                           opencode: false,
-                          openclaw: false,
-                          hermes: false,
                         }
                       }
                       onToggle={(app, enabled) => {
@@ -1130,11 +1118,8 @@ const ImportSkillsDialog: React.FC<ImportSkillsDialogProps> = ({
                             ...(prev[skill.directory] ?? {
                               claude: false,
                               codex: false,
-                              gemini: false,
                               grokbuild: false,
                               opencode: false,
-                              openclaw: false,
-                              hermes: false,
                             }),
                             [app]: enabled,
                           },

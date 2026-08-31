@@ -67,7 +67,7 @@ fn import_from_apps_respects_explicit_app_selection() {
         "explicitly selected OpenCode app should remain enabled"
     );
     assert!(
-        !skill.apps.claude && !skill.apps.codex && !skill.apps.gemini,
+        !skill.apps.claude && !skill.apps.codex,
         "import should no longer infer apps from every matching source path"
     );
 }
@@ -285,7 +285,7 @@ fn restore_skill_backup_restores_files_to_ssot_and_current_app() {
     assert_eq!(restored.directory, "restore-skill");
     assert!(restored.apps.claude, "restored skill should enable Claude");
     assert!(
-        !restored.apps.codex && !restored.apps.gemini && !restored.apps.opencode,
+        !restored.apps.codex && !restored.apps.opencode,
         "restore should only enable the selected app"
     );
     assert!(

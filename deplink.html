@@ -271,11 +271,6 @@
             color: #f39c12;
         }
 
-        .badge-gemini {
-            background: #fdeef4;
-            color: #e91e63;
-        }
-
         .param-list {
             background: #f8f9fa;
             border-left: 3px solid #3498db;
@@ -458,41 +453,6 @@
                     </div>
                 </div>
 
-                <!-- Gemini 配置导入 -->
-                <div class="link-card">
-                    <h3>
-                        <span class="app-badge badge-gemini">Gemini</span>
-                        Gemini 配置导入
-                    </h3>
-                    <p class="description">
-                        Gemini 使用扁平的环境变量格式,简洁明了。
-                    </p>
-                    <div class="param-list">
-                        <span class="param-tag">必需</span> name, config<br>
-                        <span class="param-tag optional">可选</span> <strong>configFormat=json</strong>
-                    </div>
-                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                        <a href="ccswitch://v1/import?resource=provider&app=gemini&name=Google%20Gemini&configFormat=json&config=eyJHRU1JTklfQVBJX0tFWSI6IkFJemFTeUR0ZXN0a2V5MTIzIiwiR0VNSU5JX0JBU0VfVVJMIjoiaHR0cHM6Ly9nZW5lcmF0aXZlbGFuZ3VhZ2UuZ29vZ2xlYXBpcy5jb20vdjFiZXRhIiwiR0VNSU5JX01PREVMIjoiZ2VtaW5pLTMtcHJvLXByZXZpZXcifQ=="
-                            class="deep-link">
-                            📥 导入 Gemini 配置
-                        </a>
-                        <button class="deep-link"
-                            style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); cursor: pointer; border: none;"
-                            onclick="copyDeepLink('ccswitch://v1/import?resource=provider&app=gemini&name=Google%20Gemini&configFormat=json&config=eyJHRU1JTklfQVBJX0tFWSI6IkFJemFTeUR0ZXN0a2V5MTIzIiwiR0VNSU5JX0JBU0VfVVJMIjoiaHR0cHM6Ly9nZW5lcmF0aXZlbGFuZ3VhZ2UuZ29vZ2xlYXBpcy5jb20vdjFiZXRhIiwiR0VNSU5JX01PREVMIjoiZ2VtaW5pLTMtcHJvLXByZXZpZXcifQ==', this)">
-                            📋 复制链接
-                        </button>
-                    </div>
-                    <div class="code-block"
-                        style="margin-top: 12px; padding: 12px; background: #2c3e50; color: #ecf0f1; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto;">
-                        <div style="color: #95a5a6; margin-bottom: 8px;">// 解码后的配置内容:</div>
-                        {<br>
-                        &nbsp;&nbsp;"GEMINI_API_KEY": "AIzaSyDtestkey123",<br>
-                        &nbsp;&nbsp;"GEMINI_BASE_URL": "https://generativelanguage.googleapis.com/v1beta",<br>
-                        &nbsp;&nbsp;"GEMINI_MODEL": "gemini-3-pro-preview"<br>
-                        }
-                    </div>
-                </div>
-
             </div>
 
             <!-- MCP、Prompt、Skill 示例 -->
@@ -642,7 +602,7 @@
 
                     <div class="form-group">
                         <label>目标应用 *</label>
-                        <input type="text" id="mcpApps" placeholder="例如: claude,codex,gemini 或 claude" />
+                        <input type="text" id="mcpApps" placeholder="例如: claude,codex 或 claude" />
                         <small style="color: #7f8c8d;">多个应用用逗号分隔</small>
                     </div>
 
@@ -692,7 +652,6 @@
                         <select id="promptApp">
                             <option value="claude">Claude</option>
                             <option value="codex">Codex</option>
-                            <option value="gemini">Gemini</option>
                         </select>
                     </div>
 
@@ -909,7 +868,6 @@
                     <select id="app" onchange="updateModelFields()">
                         <option value="claude">Claude Code</option>
                         <option value="codex">Codex</option>
-                        <option value="gemini">Gemini</option>
                     </select>
                 </div>
 
@@ -946,13 +904,13 @@
 
                     <div class="form-group">
                         <label>API Key</label>
-                        <input type="text" id="apiKey" placeholder="sk-xxxxx 或 AIzaSyXXXXX（配置文件模式可从配置提取）">
+                        <input type="text" id="apiKey" placeholder="sk-xxxxx（配置文件模式可从配置提取）">
                     </div>
                 </div>
 
                 <!-- 配置文件模式字段 -->
                 <div id="configModeFields" style="display: none;">
-                    <!-- 通用/Claude/Gemini JSON 配置 -->
+                    <!-- 通用/Claude JSON 配置 -->
                     <div id="generalConfigGroup" class="form-group">
                         <label id="configJsonLabel">配置文件内容（JSON）</label>
                         <textarea id="configJson" rows="12"
@@ -997,7 +955,7 @@
 
                 <div class="form-group">
                     <label>默认模型（可选）</label>
-                    <input type="text" id="model" placeholder="例如: claude-haiku-4.1, gpt-5.1, gemini-3-pro-preview">
+                    <input type="text" id="model" placeholder="例如: claude-haiku-4.1, gpt-5.1">
                     <small style="color: #7f8c8d; font-size: 12px; display: block; margin-top: 4px;">
                         通用模型字段，适用于所有应用类型
                     </small>
@@ -1041,7 +999,7 @@
 
                 <div class="form-group">
                     <label>图标（可选）</label>
-                    <input type="text" id="icon" placeholder="例如: openai, anthropic, google">
+                    <input type="text" id="icon" placeholder="例如: openai, anthropic">
                     <small style="color: #7f8c8d; font-size: 12px; display: block; margin-top: 4px;">
                         图标名称，用于在界面中显示
                     </small>
@@ -1231,13 +1189,6 @@ name = "custom"
 base_url = "https://api.openai.com/v1"
 wire_api = "responses"
 requires_openai_auth = true`;
-            } else if (app === 'gemini') {
-                template = `{
-  "GEMINI_API_KEY": "AIzaSy-your-api-key-here",
-  "GEMINI_BASE_URL": "https://generativelanguage.googleapis.com/v1beta",
-  "GEMINI_MODEL": "gemini-3-pro-preview"
-}`;
-                configTextarea.value = template;
             }
         }
 
@@ -1691,23 +1642,6 @@ requires_openai_auth = true`;
                                     </div>
                                 `;
                             }
-                        } else if (paramsObj.app === 'gemini') {
-                            configHtml += `
-                                <div style="background: #fff; padding: 12px; border-radius: 6px;">
-                                    <div style="font-size: 12px; color: #0c5460; margin-bottom: 8px; font-weight: 600;">Gemini 环境变量:</div>
-                                    <div style="display: grid; grid-template-columns: 200px 1fr; gap: 6px; font-size: 12px; font-family: monospace;">
-                            `;
-                            Object.keys(configObj).forEach(key => {
-                                let value = configObj[key];
-                                if (key.includes('KEY')) {
-                                    value = value.substring(0, 10) + '****';
-                                }
-                                configHtml += `
-                                    <div style="color: #0c5460; font-weight: 500;">${key}:</div>
-                                    <div style="color: #0c5460;">${value}</div>
-                                `;
-                            });
-                            configHtml += '</div></div>';
                         }
 
                         // 原始 JSON

@@ -411,7 +411,7 @@ pub fn validate_proxy_provider(provider: &Provider) -> Result<(), AppError> {
         if let Some(api_format) = meta.api_format.as_deref() {
             if !matches!(
                 api_format,
-                "" | "anthropic" | "openai_chat" | "openai_responses" | "gemini_native"
+                "" | "anthropic" | "openai_chat" | "openai_responses"
             ) {
                 return Err(AppError::localized(
                     "claude_desktop.provider.api_format_unsupported",
@@ -457,7 +457,6 @@ fn has_proxy_base_url_and_key(provider: &Provider) -> bool {
                 "ANTHROPIC_API_KEY",
                 "OPENROUTER_API_KEY",
                 "OPENAI_API_KEY",
-                "GEMINI_API_KEY",
             ]
             .into_iter()
             .find_map(|key| value.get(key))

@@ -3,7 +3,6 @@ import type { AppId } from "@/lib/api";
 import type { ProviderCategory } from "@/types";
 import type { ProviderPreset } from "@/config/claudeProviderPresets";
 import type { CodexProviderPreset } from "@/config/codexProviderPresets";
-import type { GeminiProviderPreset } from "@/config/geminiProviderPresets";
 import type { OpenCodeProviderPreset } from "@/config/opencodeProviderPresets";
 import type { ClaudeDesktopProviderPreset } from "@/config/claudeDesktopProviderPresets";
 
@@ -12,7 +11,6 @@ type PresetEntry = {
   preset:
     | ProviderPreset
     | CodexProviderPreset
-    | GeminiProviderPreset
     | OpenCodeProviderPreset
     | ClaudeDesktopProviderPreset;
 };
@@ -84,10 +82,7 @@ export function useApiKeyLink({
       appId === "claude" ||
       appId === "claude-desktop" ||
       appId === "codex" ||
-      appId === "gemini" ||
-      appId === "opencode" ||
-      appId === "openclaw" ||
-      appId === "hermes"
+      appId === "opencode"
         ? shouldShowApiKeyLink
         : false,
     websiteUrl: getWebsiteUrl,

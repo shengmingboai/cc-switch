@@ -11,7 +11,7 @@ import type {
   DraggableAttributes,
   DraggableSyntheticListeners,
 } from "@dnd-kit/core";
-import type { OpenClawProviderConfig, Provider } from "@/types";
+import type { Provider } from "@/types";
 import type { AppId } from "@/lib/api";
 import { authApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,6 @@ import CopilotQuotaFooter from "@/components/CopilotQuotaFooter";
 import CodexOauthQuotaFooter from "@/components/CodexOauthQuotaFooter";
 import XaiOauthQuotaFooter from "@/components/XaiOauthQuotaFooter";
 import { PROVIDER_TYPES, TEMPLATE_TYPES } from "@/config/constants";
-import { isHermesReadOnlyProvider } from "@/config/hermesProviderPresets";
 import { ProviderHealthBadge } from "@/components/providers/ProviderHealthBadge";
 import { FailoverPriorityBadge } from "@/components/providers/FailoverPriorityBadge";
 import {
@@ -75,11 +74,8 @@ interface ProviderCardProps {
   isInFailoverQueue?: boolean; // 是否在故障转移队列中
   onToggleFailover?: (enabled: boolean) => void; // 切换故障转移队列
   activeProviderId?: string; // 代理当前实际使用的供应商 ID（用于故障转移模式下标注绿色边框）
-  // OpenClaw: default model
-  isDefaultModel?: boolean;
   isRemovalProtected?: boolean;
   isStateChangeProtected?: boolean;
-  onSetAsDefault?: (modelId?: string) => void;
 }
 
 /** 判断是否为官方供应商（无自定义 base URL / API key，直连官方 API） */
@@ -105,15 +101,6 @@ function isOfficialProvider(provider: Provider, appId: AppId): boolean {
       (!apiKey || (typeof apiKey === "string" && apiKey.trim() === ""))
     );
   }
-  if (appId === "gemini") {
-    // 无 GEMINI_API_KEY 且无 GOOGLE_GEMINI_BASE_URL → Google OAuth 官方模式
-    const apiKey = config?.env?.GEMINI_API_KEY;
-    const baseUrl = config?.env?.GOOGLE_GEMINI_BASE_URL;
-    return (
-      (!apiKey || (typeof apiKey === "string" && apiKey.trim() === "")) &&
-      (!baseUrl || (typeof baseUrl === "string" && baseUrl.trim() === ""))
-    );
-  }
   return false;
 }
 
@@ -130,8 +117,7 @@ const extractApiUrl = (provider: Provider, fallbackText: string) => {
 
   if (config && typeof config === "object") {
     const object = config as Record<string, any>;
-    const envBase =
-      object?.env?.ANTHROPIC_BASE_URL || object?.env?.GOOGLE_GEMINI_BASE_URL;
+    const envBase = object?.env?.ANTHROPIC_BASE_URL;
     if (typeof envBase === "string" && envBase.trim()) {
       return envBase;
     }
@@ -192,11 +178,8 @@ export function ProviderCard({
   isInFailoverQueue = false,
   onToggleFailover,
   activeProviderId,
-  // OpenClaw: default model
-  isDefaultModel,
   isRemovalProtected,
   isStateChangeProtected,
-  onSetAsDefault,
 }: ProviderCardProps) {
   const { t } = useTranslation();
   const codexOfficialIdentity = resolveCodexOfficialIdentity(appId, provider);
@@ -246,15 +229,6 @@ export function ProviderCard({
     return extractApiUrl(provider, fallbackUrlText);
   }, [provider, fallbackUrlText]);
 
-  const openclawDefaultModelOptions = useMemo(() => {
-    if (appId !== "openclaw") return [];
-    const config = provider.settingsConfig as OpenClawProviderConfig;
-    if (!Array.isArray(config?.models)) return [];
-    return config.models
-      .filter((model) => typeof model.id === "string" && model.id.trim())
-      .map((model) => ({ id: model.id, name: model.name }));
-  }, [appId, provider.settingsConfig]);
-
   const isClickableUrl = useMemo(() => {
     if (provider.notes?.trim()) {
       return false;
@@ -270,7 +244,7 @@ export function ProviderCard({
     provider.meta?.usage_script?.enabled ?? isBoundCodexOfficial;
   const isOfficial = isOfficialProvider(provider, appId);
   const supportsOfficialSubscription =
-    isOfficial && ["claude", "codex", "gemini", "grokbuild"].includes(appId);
+    isOfficial && ["claude", "codex", "grokbuild"].includes(appId);
   const isOfficialSubscriptionUsage =
     provider.meta?.usage_script?.templateType ===
     TEMPLATE_TYPES.OFFICIAL_SUBSCRIPTION;
@@ -295,10 +269,6 @@ export function ProviderCard({
   const isCopilot =
     provider.meta?.providerType === PROVIDER_TYPES.GITHUB_COPILOT ||
     provider.meta?.usage_script?.templateType === "github_copilot";
-  // Hermes v12+ overlay entries live under the `providers:` dict and are
-  // read-only here — writes have to go through Hermes Web UI.
-  const isHermesReadOnly =
-    appId === "hermes" && isHermesReadOnlyProvider(provider.settingsConfig);
   const isCodexOauth =
     appId === "codex"
       ? isBoundCodexOfficial
@@ -343,19 +313,16 @@ export function ProviderCard({
 
   // 判断是否是"当前使用中"的供应商
   // - OMO/OMO Slim 供应商：使用 isCurrent
-  // - OpenClaw：使用默认模型归属的 provider 作为当前项（蓝色边框）
   // - OpenCode（非 OMO）：不存在"当前"概念，返回 false
   // - 故障转移模式：代理实际使用的供应商（activeProviderId）
   // - 普通模式：isCurrent
   const isActiveProvider = isAnyOmo
     ? isCurrent
-    : appId === "openclaw"
-      ? Boolean(isDefaultModel)
-      : appId === "opencode" || appId === "pi"
-        ? false
-        : isAutoFailoverEnabled
-          ? activeProviderId === provider.id
-          : isCurrent;
+    : appId === "opencode" || appId === "pi"
+      ? false
+      : isAutoFailoverEnabled
+        ? activeProviderId === provider.id
+        : isCurrent;
 
   const shouldUseGreen = !isAnyOmo && isProxyTakeover && isActiveProvider;
   const hasPersistentConfigHighlight = isAdditiveMode && isInConfig;
@@ -499,18 +466,6 @@ export function ProviderCard({
                   <FailoverPriorityBadge priority={failoverPriority} />
                 )}
 
-              {isHermesReadOnly && (
-                <span
-                  className="inline-flex items-center rounded-md bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-700/60 dark:text-slate-200"
-                  title={t("provider.managedByHermesHint", {
-                    defaultValue: "由 Hermes 管理，请在 Hermes Web UI 中编辑",
-                  })}
-                >
-                  {t("provider.managedByHermes", {
-                    defaultValue: "Hermes Managed",
-                  })}
-                </span>
-              )}
             </div>
 
             {codexOfficialIdentity && codexOfficialIdentity !== "api_key" ? (
@@ -688,7 +643,6 @@ export function ProviderCard({
               isTesting={isTesting}
               isProxyTakeover={isProxyTakeover}
               isOfficialBlockedByProxy={isOfficialBlockedByProxy}
-              isReadOnly={isHermesReadOnly}
               isOmo={isAnyOmo}
               onSwitch={() => onSwitch(provider)}
               onEdit={() => onEdit(provider)}
@@ -726,12 +680,8 @@ export function ProviderCard({
               onToggleFailover={
                 supportsOfficialRouting ? undefined : onToggleFailover
               }
-              // OpenClaw: default model
-              isDefaultModel={isDefaultModel}
               isRemovalProtected={isRemovalProtected}
               isStateChangeProtected={isStateChangeProtected}
-              defaultModelOptions={openclawDefaultModelOptions}
-              onSetAsDefault={onSetAsDefault}
             />
           </div>
         </div>

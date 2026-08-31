@@ -71,7 +71,6 @@ const PI_API_FORMATS = [
   { value: "openai-completions", label: "OpenAI Chat Completions" },
   { value: "openai-responses", label: "OpenAI Responses" },
   { value: "anthropic-messages", label: "Anthropic Messages" },
-  { value: "google-generative-ai", label: "Google Generative AI" },
   { value: "bedrock-converse-stream", label: "Amazon Bedrock" },
 ] as const satisfies ReadonlyArray<{ value: PiApiFormat; label: string }>;
 
@@ -167,6 +166,13 @@ function parseJsonObject(value: string): Record<string, unknown> | null {
 
 function optionalText(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function normalizePiApiFormat(value: unknown): PiApiFormat {
+  const candidate = optionalText(value);
+  return PI_API_FORMATS.some((format) => format.value === candidate)
+    ? (candidate as PiApiFormat)
+    : "openai-completions";
 }
 
 function optionalNumberText(value: unknown): string {
@@ -399,6 +405,7 @@ export function PiProviderForm({
     [initialData?.settingsConfig],
   );
   const isEdit = Boolean(initialData);
+  const initialApi = normalizePiApiFormat(initialConfig.api);
   const initialNativeName = optionalText(initialConfig.name);
   const initialDisplayName = initialData?.name ?? initialNativeName;
   const initialConfigHasNativeName = hasOwn(initialConfig, "name");
@@ -443,9 +450,7 @@ export function PiProviderForm({
   );
   const [providerKey, setProviderKey] = useState(providerId ?? "");
   const [baseUrl, setBaseUrl] = useState(optionalText(initialConfig.baseUrl));
-  const [api, setApi] = useState(
-    () => optionalText(initialConfig.api) || "openai-completions",
-  );
+  const [api, setApi] = useState(initialApi);
   const [includeApi, setIncludeApi] = useState(
     () => !isEdit || hasOwn(initialConfig, "api"),
   );
@@ -612,7 +617,7 @@ export function PiProviderForm({
         hasNativeName && nextNativeName === currentDisplayName,
       );
       setBaseUrl(optionalText(config.baseUrl));
-      const nextApi = optionalText(config.api) || "openai-completions";
+      const nextApi = normalizePiApiFormat(config.api);
       setApi(nextApi);
       setIncludeApi(hasOwn(config, "api"));
       setApiKey(optionalText(config.apiKey));
@@ -625,8 +630,8 @@ export function PiProviderForm({
       const requestConfigChanged =
         !previousConfig ||
         optionalText(previousConfig.baseUrl) !== optionalText(config.baseUrl) ||
-        (optionalText(previousConfig.api) || "openai-completions") !==
-          (optionalText(config.api) || "openai-completions") ||
+        normalizePiApiFormat(previousConfig.api) !==
+          normalizePiApiFormat(config.api) ||
         optionalText(previousConfig.apiKey) !== optionalText(config.apiKey) ||
         !jsonValuesEqual(
           stringRecord(asObject(previousConfig.headers)),
@@ -989,12 +994,13 @@ export function PiProviderForm({
 
   const handleApiChange = useCallback(
     (value: string) => {
+      const nextApi = normalizePiApiFormat(value);
       const applied = updateSettingsConfig((config) => {
-        config.api = value;
+        config.api = nextApi;
       });
       if (!applied) return;
       invalidateFetchedModels();
-      setApi(value);
+      setApi(nextApi);
       setIncludeApi(true);
     },
     [invalidateFetchedModels, updateSettingsConfig],
@@ -1298,10 +1304,6 @@ export function PiProviderForm({
     }),
     [t],
   );
-  const isKnownApiFormat = PI_API_FORMATS.some(
-    (format) => format.value === api,
-  );
-
   return (
     <Form {...form}>
       <form
@@ -1403,9 +1405,6 @@ export function PiProviderForm({
                       {format.label}
                     </SelectItem>
                   ))}
-                  {!isKnownApiFormat && api && (
-                    <SelectItem value={api}>{api}</SelectItem>
-                  )}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">

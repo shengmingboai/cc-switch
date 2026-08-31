@@ -13,7 +13,7 @@ use super::{
     forwarder::ActiveConnectionGuard,
     handler_config::{
         claude_stream_usage_event_filter, codex_stream_usage_event_filter, CLAUDE_PARSER_CONFIG,
-        CODEX_PARSER_CONFIG, GEMINI_PARSER_CONFIG, OPENAI_PARSER_CONFIG,
+        CODEX_PARSER_CONFIG, OPENAI_PARSER_CONFIG,
     },
     handler_context::RequestContext,
     providers::{
@@ -26,13 +26,12 @@ use super::{
             responses_sse_events_from_anthropic_message,
         },
         streaming_codex_chat::create_responses_sse_stream_from_chat_with_context,
-        streaming_gemini::create_anthropic_sse_stream_from_gemini,
         streaming_responses::{
             create_anthropic_sse_stream_from_responses,
             create_anthropic_sse_stream_from_responses_with_web_search_options,
         },
         transform, transform_codex_anthropic, transform_codex_chat,
-        transform_codex_responses_namespace, transform_gemini, transform_responses,
+        transform_codex_responses_namespace, transform_responses,
     },
     response_processor::{
         create_logged_passthrough_stream, create_usage_collector, process_response,
@@ -414,8 +413,6 @@ async fn handle_claude_transform(
             is_codex_oauth,
         )
     };
-    let tool_schema_hints = transform_gemini::extract_anthropic_tool_schema_hints(original_body);
-    let tool_schema_hints = (!tool_schema_hints.is_empty()).then_some(tool_schema_hints);
     let hosted_web_search_name =
         transform_responses::anthropic_web_search_tool_name(original_body).map(ToString::to_string);
     let hosted_web_search_max_uses =
@@ -438,14 +435,6 @@ async fn handle_claude_transform(
                     ),
                 ))
             }
-        } else if api_format == "gemini_native" {
-            Box::new(Box::pin(create_anthropic_sse_stream_from_gemini(
-                stream,
-                Some(state.gemini_shadow.clone()),
-                Some(ctx.provider.id.clone()),
-                Some(ctx.session_id.clone()),
-                tool_schema_hints.clone(),
-            )))
         } else {
             Box::new(Box::pin(create_anthropic_sse_stream(stream)))
         };
@@ -576,8 +565,8 @@ async fn handle_claude_transform(
                     // 兜底嗅探（#2234）：部分网关对 stream:false 强制返回 SSE 体，却把
                     // Content-Type 标成 application/json 等，is_sse() 的 header 检查失效。
                     // 此时按 SSE 聚合成单个 JSON 再走既有非流转换器，客户端仍收到
-                    // Anthropic JSON，非流语义不变。gemini_native 暂无聚合器，落诊断错误。
-                    Err(_) if body_looks_like_sse(&body_str) && api_format != "gemini_native" => {
+                    // Anthropic JSON。
+                    Err(_) if body_looks_like_sse(&body_str) => {
                         log::warn!(
                             "[Claude] 上游对非流请求返回未标记的 SSE 体（api_format={api_format}），按 SSE 聚合兜底"
                         );
@@ -637,15 +626,6 @@ async fn handle_claude_transform(
                 response,
                 hosted_web_search_name.as_deref(),
                 hosted_web_search_max_uses,
-            )
-        }
-        (None, Some(response)) if api_format == "gemini_native" => {
-            transform_gemini::gemini_to_anthropic_with_shadow_and_hints(
-                response,
-                Some(state.gemini_shadow.as_ref()),
-                Some(&ctx.provider.id),
-                Some(&ctx.session_id),
-                tool_schema_hints.as_ref(),
             )
         }
         (None, Some(response)) => transform::openai_to_anthropic(response),
@@ -1862,7 +1842,7 @@ async fn handle_codex_chat_error_response(
 ///
 /// 注意：`endpoint` 经 `endpoint_with_query` 可能携带 query（如 `?beta=true`）并被
 /// 原样写入错误体。当前 Codex 端点不在 query 里放凭证，故安全；若将来复用到
-/// query 携带密钥的端点（如 Gemini 的 `?key=`），需先脱敏再回显。
+/// query 携带密钥的端点（如 `?key=`），需先脱敏再回显。
 fn build_codex_proxy_error_response(
     ctx: &RequestContext,
     endpoint: &str,
@@ -2042,88 +2022,6 @@ fn compact_error_message(message: &str, max_chars: usize) -> String {
         .trim_end()
         .to_string();
     format!("{truncated}…(truncated)")
-}
-
-// ============================================================================
-// Gemini API 处理器
-// ============================================================================
-
-/// 处理 Gemini API 请求（透传，包括查询参数）
-pub async fn handle_gemini(
-    State(state): State<ProxyState>,
-    uri: axum::http::Uri,
-    request: axum::extract::Request,
-) -> Result<axum::response::Response, ProxyError> {
-    let (parts, req_body) = request.into_parts();
-    let method = parts.method.clone();
-    let headers = parts.headers;
-    let extensions = parts.extensions;
-    let body_bytes = req_body
-        .collect()
-        .await
-        .map_err(|e| ProxyError::Internal(format!("Failed to read request body: {e}")))?
-        .to_bytes();
-    // GET 类只读端点（/v1beta/models、/v1beta/models/<model> 等）没有请求体，
-    // 不能强制 parse 为 JSON —— 否则空 body 会被拒绝。
-    let body: Value = if body_bytes.is_empty() {
-        Value::Null
-    } else {
-        serde_json::from_slice(&body_bytes)
-            .map_err(|e| ProxyError::Internal(format!("Failed to parse request body: {e}")))?
-    };
-
-    // Gemini 的模型名称在 URI 中
-    let mut ctx = RequestContext::new(&state, &body, &headers, AppType::Gemini, "Gemini", "gemini")
-        .await?
-        .with_model_from_uri(&uri);
-
-    // 提取完整的路径和查询参数
-    let endpoint = uri
-        .path_and_query()
-        .map(|pq| pq.as_str())
-        .unwrap_or(uri.path());
-
-    let is_stream = body
-        .get("stream")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-
-    let forwarder = ctx.create_forwarder(&state);
-    let mut result = match forwarder
-        .forward_with_retry(
-            &AppType::Gemini,
-            method,
-            endpoint,
-            body,
-            headers,
-            extensions,
-            ctx.get_providers(),
-        )
-        .await
-    {
-        Ok(result) => result,
-        Err(mut err) => {
-            if let Some(provider) = err.provider.take() {
-                ctx.provider = provider;
-            }
-            log_forward_error(&state, &ctx, is_stream, &err.error);
-            return Err(err.error);
-        }
-    };
-
-    let connection_guard = result.connection_guard.take();
-    ctx.outbound_model = result.outbound_model.take();
-    ctx.provider = result.provider;
-    let response = result.response;
-
-    process_response(
-        response,
-        &ctx,
-        &state,
-        &GEMINI_PARSER_CONFIG,
-        connection_guard,
-    )
-    .await
 }
 
 fn should_use_claude_transform_streaming(

@@ -9,10 +9,8 @@ release/
 .npmrc
 CLAUDE.md
 AGENTS.md
-GEMINI.md
 /.claude
 /.codex
-/.gemini
 /.cc-switch
 /data
 /.idea

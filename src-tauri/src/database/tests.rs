@@ -199,6 +199,7 @@ fn schema_migration_sets_user_version_when_missing() {
         Database::get_user_version(&conn).expect("read version after"),
         SCHEMA_VERSION
     );
+    assert!(!Database::has_column(&conn, "mcp_servers", "enabled_hermes").expect("check Hermes column"));
 }
 
 #[test]
@@ -230,7 +231,6 @@ fn schema_migration_adds_missing_columns_for_providers() {
         ("providers", "meta"),
         ("providers", "is_current"),
         ("provider_endpoints", "added_at"),
-        ("mcp_servers", "enabled_gemini"),
         ("prompts", "updated_at"),
         ("skills", "installed_at"),
         ("skill_repos", "enabled"),
@@ -549,7 +549,7 @@ fn schema_create_tables_repairs_legacy_proxy_config_singleton_to_per_app() {
     let count: i32 = conn
         .query_row("SELECT COUNT(*) FROM proxy_config", [], |r| r.get(0))
         .expect("count rows");
-    assert_eq!(count, 4, "per-app proxy_config should have 4 rows");
+    assert_eq!(count, 3, "per-app proxy_config should have 3 rows");
 
     // 新结构下应能按 app_type 查询
     let _: i32 = conn
@@ -689,7 +689,7 @@ fn migration_from_v3_8_schema_v1_to_current_schema_v3() {
     let proxy_rows: i64 = conn
         .query_row("SELECT COUNT(*) FROM proxy_config", [], |r| r.get(0))
         .expect("count proxy_config rows");
-    assert_eq!(proxy_rows, 4);
+    assert_eq!(proxy_rows, 3);
 
     // model_pricing 应具备默认数据（迁移时会 seed）
     let pricing_rows: i64 = conn
@@ -773,6 +773,46 @@ fn dry_run_validates_schema_compatibility() {
 }
 
 #[test]
+fn json_migration_skips_removed_app_providers() {
+    let db = Database::memory().expect("create memory db");
+    let mut config = MultiAppConfig::default();
+
+    for app_type in ["gemini", "openclaw", "hermes"] {
+        let mut providers = IndexMap::new();
+        providers.insert(
+            "legacy-provider".to_string(),
+            Provider::with_id(
+                "legacy-provider".to_string(),
+                "Legacy Provider".to_string(),
+                json!({"apiKey": "legacy-secret"}),
+                None,
+            ),
+        );
+        config.apps.insert(
+            app_type.to_string(),
+            ProviderManager {
+                providers,
+                current: "legacy-provider".to_string(),
+            },
+        );
+    }
+
+    db.migrate_from_json(&config)
+        .expect("migrate supported app data");
+
+    let conn = db.conn.lock().expect("lock database");
+    let removed_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM providers
+             WHERE app_type IN ('gemini', 'openclaw', 'hermes')",
+            [],
+            |row| row.get(0),
+        )
+        .expect("count removed app providers");
+    assert_eq!(removed_count, 0);
+}
+
+#[test]
 fn schema_model_pricing_is_seeded_on_init() {
     let db = Database::memory().expect("create memory db");
 
@@ -816,19 +856,6 @@ fn schema_model_pricing_is_seeded_on_init() {
         gpt_count
     );
 
-    // 验证包含 Gemini 模型
-    let gemini_count: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM model_pricing WHERE model_id LIKE 'gemini-%'",
-            [],
-            |row| row.get(0),
-        )
-        .expect("check gemini");
-    assert!(
-        gemini_count > 0,
-        "应该包含 Gemini 模型定价，实际数量: {}",
-        gemini_count
-    );
 }
 
 #[test]

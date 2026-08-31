@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest";
 import { providerPresets } from "@/config/claudeProviderPresets";
 import { claudeDesktopProviderPresets } from "@/config/claudeDesktopProviderPresets";
 import { opencodeProviderPresets } from "@/config/opencodeProviderPresets";
-import { hermesProviderPresets } from "@/config/hermesProviderPresets";
-import {
-  openclawProviderPresets,
-  rebaseOpenClawSuggestedDefaults,
-} from "@/config/openclawProviderPresets";
 
 // 千帆 Token Plan 个人版（2026-07-13 起替代 Coding Plan 发售；存量 Coding
 // Plan 可用至到期，旧预设保留并存）。Codex 侧口径由 codexChatProviderPresets
@@ -65,55 +60,4 @@ describe("Baidu Qianfan Token Plan presets", () => {
     expect(Object.keys(preset?.settingsConfig.models ?? {})).toEqual(MODEL_IDS);
   });
 
-  it("Hermes preset uses the OpenAI-compatible endpoint with v4-pro default", () => {
-    const preset = hermesProviderPresets.find(
-      (item) => item.name === PRESET_NAME,
-    );
-    expect(preset).toBeDefined();
-    expect(preset?.settingsConfig.base_url).toBe(OPENAI_BASE);
-    expect(preset?.settingsConfig.api_mode).toBe("chat_completions");
-    expect(
-      (preset?.settingsConfig.models ?? []).map((model) => model.id),
-    ).toEqual(MODEL_IDS);
-    expect(preset?.suggestedDefaults?.model).toEqual({
-      default: "deepseek-v4-pro",
-      provider: "qianfan_tokenplan",
-    });
-  });
-
-  it("OpenClaw preset mirrors the official OpenClaw integration page", () => {
-    const preset = openclawProviderPresets.find(
-      (item) => item.name === PRESET_NAME,
-    );
-    expect(preset).toBeDefined();
-    expect(preset?.settingsConfig.baseUrl).toBe(OPENAI_BASE);
-    expect(preset?.settingsConfig.api).toBe("openai-completions");
-
-    // 模型条目=官方 OpenClaw 接入页（2026-07-22 版）原样。窗口 98304 是官方
-    // 钦定的 OpenClaw 口径，≠平台模型列表页 1M——勿按平台口径"修正"
-    const model = preset?.settingsConfig.models?.[0];
-    expect(model?.id).toBe("deepseek-v4-pro");
-    expect(model?.contextWindow).toBe(98304);
-    expect(model?.maxTokens).toBe(65536);
-    expect(model?.cost).toEqual({
-      input: 0.0025,
-      output: 0.01,
-      cacheRead: 0,
-      cacheWrite: 0,
-    });
-  });
-
-  it("rebases OpenClaw defaults to the submitted provider key", () => {
-    const preset = openclawProviderPresets.find(
-      (item) => item.name === PRESET_NAME,
-    );
-    expect(preset?.suggestedDefaults).toBeDefined();
-
-    const rebased = rebaseOpenClawSuggestedDefaults(
-      preset!.suggestedDefaults!,
-      "my-qianfan",
-    );
-    expect(rebased.model?.primary).toBe("my-qianfan/deepseek-v4-pro");
-    expect(rebased.modelCatalog).toHaveProperty("my-qianfan/deepseek-v4-pro");
-  });
 });

@@ -93,7 +93,6 @@ describe("classifyEnvKey", () => {
     for (const key of [
       "ANTHROPIC_AUTH_TOKEN",
       "ANTHROPIC_BASE_URL",
-      "GEMINI_API_KEY",
       "API_TIMEOUT_MS",
       "ANTHROPIC_MODEL",
     ]) {

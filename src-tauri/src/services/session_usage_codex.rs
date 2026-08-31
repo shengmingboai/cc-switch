@@ -2835,7 +2835,7 @@ mod tests {
         let current_codex = rollout_path(&wide_dir.join("sessions"), CHILD_A_ID);
         let legacy_codex =
             format!("C:\\old-codex\\archived_sessions\\rollout-old-{CHILD_B_ID}.jsonl");
-        let gemini_cursor = wide_dir.join("gemini/sessions/session-123.json");
+        let other_app_cursor = wide_dir.join("other-app/sessions/session-123.json");
         let claude_cursor = wide_dir.join(format!("projects/rollout-{PARENT_ID}.jsonl"));
 
         {
@@ -2847,16 +2847,16 @@ mod tests {
                     created_at, data_source
                  ) VALUES
                     ('codex-row', '_codex_session', 'codex', 'gpt', 1, 1, 0, 0, 200, 1, 'codex_session'),
-                    ('gemini-row', '_gemini_session', 'gemini', 'gemini', 1, 1, 0, 0, 200, 1, 'gemini_session');
+                    ('other-app-row', '_other_app_session', 'other-app', 'other-model', 1, 1, 0, 0, 200, 1, 'other_app_session');
                  INSERT INTO usage_daily_rollups (date, app_type, provider_id, model)
                  VALUES
                     ('2026-07-10', 'codex', '_codex_session', 'gpt'),
-                    ('2026-07-10', 'gemini', '_gemini_session', 'gemini');",
+                    ('2026-07-10', 'other-app', '_other_app_session', 'other-model');",
             )?;
             for path in [
                 current_codex.to_string_lossy().to_string(),
                 legacy_codex,
-                gemini_cursor.to_string_lossy().to_string(),
+                other_app_cursor.to_string_lossy().to_string(),
                 claude_cursor.to_string_lossy().to_string(),
             ] {
                 conn.execute(
@@ -2873,8 +2873,8 @@ mod tests {
                 [],
                 |row| row.get(0),
             )?;
-            let gemini_rows: i64 = conn.query_row(
-                "SELECT COUNT(*) FROM proxy_request_logs WHERE data_source = 'gemini_session'",
+            let other_app_rows: i64 = conn.query_row(
+                "SELECT COUNT(*) FROM proxy_request_logs WHERE data_source = 'other_app_session'",
                 [],
                 |row| row.get(0),
             )?;
@@ -2887,7 +2887,7 @@ mod tests {
                 conn.query_row("SELECT COUNT(*) FROM session_log_sync", [], |row| {
                     row.get(0)
                 })?;
-            assert_eq!((codex_rows, gemini_rows, codex_rollups), (0, 1, 0));
+            assert_eq!((codex_rows, other_app_rows, codex_rollups), (0, 1, 0));
             assert_eq!(remaining_cursors, 2);
         }
         Ok(())

@@ -3,10 +3,7 @@ import type { ProviderCategory } from "@/types";
 import type { AppId } from "@/lib/api";
 import { providerPresets } from "@/config/claudeProviderPresets";
 import { codexProviderPresets } from "@/config/codexProviderPresets";
-import { geminiProviderPresets } from "@/config/geminiProviderPresets";
 import { opencodeProviderPresets } from "@/config/opencodeProviderPresets";
-import { openclawProviderPresets } from "@/config/openclawProviderPresets";
-import { hermesProviderPresets } from "@/config/hermesProviderPresets";
 
 interface UseProviderCategoryProps {
   appId: AppId;
@@ -46,7 +43,7 @@ export function useProviderCategory({
 
     // 从预设 ID 提取索引
     const match = selectedPresetId.match(
-      /^(claude|codex|gemini|opencode|openclaw|hermes)-(\d+)$/,
+      /^(claude|codex|opencode)-(\d+)$/,
     );
     if (!match) return;
 
@@ -67,23 +64,8 @@ export function useProviderCategory({
           preset.category || (preset.isOfficial ? "official" : undefined),
         );
       }
-    } else if (type === "gemini" && appId === "gemini") {
-      const preset = geminiProviderPresets[index];
-      if (preset) {
-        setCategory(preset.category || undefined);
-      }
     } else if (type === "opencode" && appId === "opencode") {
       const preset = opencodeProviderPresets[index];
-      if (preset) {
-        setCategory(preset.category || undefined);
-      }
-    } else if (type === "openclaw" && appId === "openclaw") {
-      const preset = openclawProviderPresets[index];
-      if (preset) {
-        setCategory(preset.category || undefined);
-      }
-    } else if (type === "hermes" && appId === "hermes") {
-      const preset = hermesProviderPresets[index];
       if (preset) {
         setCategory(preset.category || undefined);
       }

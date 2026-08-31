@@ -15,7 +15,6 @@ export type PiApiFormat =
   | "openai-completions"
   | "openai-responses"
   | "anthropic-messages"
-  | "google-generative-ai"
   | "bedrock-converse-stream";
 
 export type PiPresetModel = PiCatalogModel & {
@@ -1330,9 +1329,6 @@ const piProviderPresetDefinitions: PiProviderPreset[] = [
         }),
         piModel("openai/gpt-5.2", {
           id: "openai/gpt-5.2",
-        }),
-        piModel("google/gemini-3.6-flash", {
-          id: "google/gemini-3.6-flash",
         }),
         piModel("qwen/qwen3-coder-480b", {
           id: "qwen/qwen3-coder-480b",

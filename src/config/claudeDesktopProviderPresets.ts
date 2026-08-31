@@ -14,8 +14,7 @@ import type { PresetTheme } from "./claudeProviderPresets";
 export type ClaudeDesktopApiFormat =
   | "anthropic"
   | "openai_chat"
-  | "openai_responses"
-  | "gemini_native";
+  | "openai_responses";
 
 export interface ClaudeDesktopRoutePreset {
   routeId: string;
@@ -805,24 +804,6 @@ export const claudeDesktopProviderPresets: ClaudeDesktopProviderPreset[] = [
     apiFormat: "anthropic",
     modelRoutes: passthroughRoutes(),
     icon: "amux",
-  },
-  {
-    name: "Gemini Native",
-    websiteUrl: "https://ai.google.dev/gemini-api",
-    apiKeyUrl: "https://aistudio.google.com/app/apikey",
-    category: "third_party",
-    baseUrl: "https://generativelanguage.googleapis.com",
-    apiKeyField: "ANTHROPIC_API_KEY",
-    mode: "proxy",
-    apiFormat: "gemini_native",
-    modelRoutes: brandedRoutes(
-      "gemini-3.6-flash",
-      "gemini-3.6-flash",
-      "gemini-3.6-flash",
-    ),
-    endpointCandidates: ["https://generativelanguage.googleapis.com"],
-    icon: "gemini",
-    iconColor: "#4285F4",
   },
   {
     name: "GitHub Copilot",

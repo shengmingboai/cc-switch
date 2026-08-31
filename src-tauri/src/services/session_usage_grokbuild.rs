@@ -252,7 +252,7 @@ fn sync_single_grok_file(
                 continue;
             }
             if takeover_active {
-                // 计入 skipped（对齐 gemini 指纹去重跳过的语义：未入账，代理
+                // 计入 skipped（该条记录未入账，代理
                 // 行权威）。勿改用 suspected_duplicates——codex 对它的语义相反
                 // （已入账待查），而 merge() 会把两义直接求和。
                 result.skipped += 1;

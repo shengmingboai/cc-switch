@@ -68,13 +68,6 @@ describe("extractBaseUrlForUsageDetection", () => {
     ).toBe("https://opencode.ai/zen/go/v1");
   });
 
-  it("returns null for unsupported apps", () => {
-    expect(
-      extractBaseUrlForUsageDetection("gemini", {
-        env: { GOOGLE_GEMINI_BASE_URL: "https://opencode.ai/zen/go" },
-      }),
-    ).toBeNull();
-  });
 });
 
 type TestProvider = {

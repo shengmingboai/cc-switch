@@ -12,7 +12,6 @@ import type { Provider } from "@/types";
 const apiMocks = vi.hoisted(() => ({
   getCurrent: vi.fn(),
   getLiveProviderSettings: vi.fn(),
-  getOpenClawLiveProvider: vi.fn(),
 }));
 let mockFormReady = true;
 let mockCodexManagedAccountSelected = false;
@@ -24,9 +23,6 @@ vi.mock("@/lib/api", () => ({
   },
   vscodeApi: {
     getLiveProviderSettings: apiMocks.getLiveProviderSettings,
-  },
-  openclawApi: {
-    getLiveProvider: apiMocks.getOpenClawLiveProvider,
   },
 }));
 
@@ -142,7 +138,6 @@ describe("EditProviderDialog", () => {
     submitReadyCallbacks = [];
     apiMocks.getCurrent.mockReset();
     apiMocks.getLiveProviderSettings.mockReset();
-    apiMocks.getOpenClawLiveProvider.mockReset();
   });
 
   it("保留 Codex 数据库中的 modelCatalog，避免 live 配置缺字段时清空模型映射", async () => {

@@ -595,7 +595,6 @@ mod tests {
         assert!(per.get(&AppType::Claude).is_some());
         assert!(per.get(&AppType::ClaudeDesktop).is_some());
         assert!(per.get(&AppType::Codex).is_some());
-        assert!(per.get(&AppType::Gemini).is_none());
     }
 
     #[test]
@@ -608,7 +607,6 @@ mod tests {
             );
             assert_eq!(ProfileScope::parse(scope.as_str()).unwrap(), scope);
         }
-        assert!(ProfileScope::parse("gemini").is_err());
         assert!(ProfileScope::parse("").is_err());
     }
 
@@ -627,7 +625,6 @@ mod tests {
                 assert_eq!(ProfileScope::for_app(app), Some(scope));
             }
         }
-        assert_eq!(ProfileScope::for_app(&AppType::Gemini), None);
     }
 
     #[test]

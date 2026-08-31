@@ -26,11 +26,8 @@ const APP_CONFIG: Array<{
     nameKey: "apps.claudeDesktop",
   },
   { id: "codex", icon: "openai", nameKey: "apps.codex" },
-  { id: "gemini", icon: "gemini", nameKey: "apps.gemini" },
   { id: "grokbuild", icon: "grok", nameKey: "apps.grokbuild" },
   { id: "opencode", icon: "opencode", nameKey: "apps.opencode" },
-  { id: "openclaw", icon: "openclaw", nameKey: "apps.openclaw" },
-  { id: "hermes", icon: "hermes", nameKey: "apps.hermes" },
   { id: "pi", icon: "pi", nameKey: "apps.pi" },
 ];
 

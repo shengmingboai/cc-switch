@@ -460,14 +460,5 @@ describe("SettingsPage Component", () => {
       "codex",
       "/new/path",
     );
-
-    fireEvent.click(screen.getByText("browse-app-config"));
-    expect(settingsMock.browseAppConfigDir).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(screen.getByText("reset-app-config"));
-    expect(settingsMock.resetAppConfigDir).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(screen.getByText("change-app-config"));
-    expect(settingsMock.updateAppConfigDir).toHaveBeenCalledWith("/app/new");
   });
 });

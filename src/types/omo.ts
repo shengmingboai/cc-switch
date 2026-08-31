@@ -120,7 +120,7 @@ export const OMO_BUILTIN_CATEGORIES: OmoCategoryDef[] = [
     display: "Visual Engineering",
     descKey: "omo.categoryDesc.visualEngineering",
     tooltipKey: "omo.categoryTooltip.visualEngineering",
-    recommended: "gemini-3.6-flash",
+    recommended: "claude-sonnet-4-6",
   },
   {
     key: "ultrabrain",
@@ -141,7 +141,7 @@ export const OMO_BUILTIN_CATEGORIES: OmoCategoryDef[] = [
     display: "Artistry",
     descKey: "omo.categoryDesc.artistry",
     tooltipKey: "omo.categoryTooltip.artistry",
-    recommended: "gemini-3.6-flash",
+    recommended: "claude-sonnet-4-6",
   },
   {
     key: "quick",
@@ -277,12 +277,10 @@ export const OMO_BACKGROUND_TASK_PLACEHOLDER = `{
   "defaultConcurrency": 5,
   "providerConcurrency": {
     "anthropic": 3,
-    "openai": 5,
-    "google": 10
+    "openai": 5
   },
   "modelConcurrency": {
-    "anthropic/claude-opus-5": 2,
-    "google/gemini-3.6-flash": 10
+    "anthropic/claude-opus-5": 2
   }
 }`;
 
@@ -336,7 +334,7 @@ export const OMO_SLIM_BUILTIN_AGENTS: OmoAgentDef[] = [
     display: "Librarian",
     descKey: "omo.slimAgentDesc.librarian",
     tooltipKey: "omo.slimAgentTooltip.librarian",
-    recommended: "gemini-3.6-flash",
+    recommended: "claude-sonnet-4-6",
     group: "sub",
   },
   {
@@ -352,7 +350,7 @@ export const OMO_SLIM_BUILTIN_AGENTS: OmoAgentDef[] = [
     display: "Designer",
     descKey: "omo.slimAgentDesc.designer",
     tooltipKey: "omo.slimAgentTooltip.designer",
-    recommended: "gemini-3.6-flash",
+    recommended: "claude-sonnet-4-6",
     group: "sub",
   },
   {

@@ -540,7 +540,7 @@ fn tier_name_for_reset(resets_at: Option<i64>, now_secs: i64) -> &'static str {
 
 /// 查询 Grok 官方订阅额度
 ///
-/// 与 claude/codex/gemini 同一约定：瞬时传输失败返回 `Err`（前端 retry +
+/// 与 claude/codex 同一约定：瞬时传输失败返回 `Err`（前端 retry +
 /// 保留上次成功值），确定性失败返回 `Ok(success:false)`。
 ///
 /// 参数化 `tool_label` / `relogin_hint` 让该函数可被两个调用点共用（与

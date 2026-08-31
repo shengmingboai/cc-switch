@@ -1892,6 +1892,35 @@ describe("PiProviderForm", () => {
     expect(JSON.parse(onSubmit.mock.calls[0][0].settingsConfig)).toEqual({});
   });
 
+  it("normalizes the removed Google Generative AI format on existing Pi providers", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <PiProviderForm
+        appId="pi"
+        providerId="legacy-google"
+        submitLabel="Save normalized provider"
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        initialData={{
+          name: "Legacy Google provider",
+          settingsConfig: {
+            api: "google-generative-ai",
+          },
+        }}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save normalized provider" }),
+    );
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(JSON.parse(onSubmit.mock.calls[0][0].settingsConfig)).toEqual({
+      api: "openai-completions",
+    });
+  });
+
   it("edits a partial built-in provider override without requiring inherited transport fields", async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     const input = {

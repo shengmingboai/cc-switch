@@ -162,11 +162,6 @@ fn build_model_fetch_headers(
                 HeaderValue::from_str(api_key)
                     .map_err(|error| format!("Invalid API Key header value: {error}"))?,
             ),
-            Some("google-generative-ai") => (
-                HeaderName::from_static("x-goog-api-key"),
-                HeaderValue::from_str(api_key)
-                    .map_err(|error| format!("Invalid API Key header value: {error}"))?,
-            ),
             _ => (
                 AUTHORIZATION,
                 HeaderValue::from_str(&format!("Bearer {api_key}"))
@@ -320,12 +315,6 @@ mod tests {
                 .unwrap();
         assert_eq!(anthropic["x-api-key"], "anthropic-key");
         assert!(!anthropic.contains_key(AUTHORIZATION));
-
-        let google =
-            build_model_fetch_headers("google-key", Some("google-generative-ai"), None, None)
-                .unwrap();
-        assert_eq!(google["x-goog-api-key"], "google-key");
-        assert!(!google.contains_key(AUTHORIZATION));
 
         let openai =
             build_model_fetch_headers("openai-key", Some("openai-responses"), None, None).unwrap();

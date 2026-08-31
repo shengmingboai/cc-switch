@@ -181,11 +181,6 @@ const COMMON_FAMILY_RULES: CommonFamilyRule[] = [
       modelId.startsWith("o4-"),
   },
   {
-    id: "gemini",
-    providers: new Set(["google"]),
-    matches: (modelId) => modelId.startsWith("gemini-"),
-  },
-  {
     id: "grok",
     providers: new Set(["xai"]),
     matches: (modelId) => modelId.startsWith("grok-"),

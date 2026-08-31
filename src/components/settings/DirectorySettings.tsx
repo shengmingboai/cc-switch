@@ -12,11 +12,8 @@ interface DirectorySettingsProps {
   resolvedDirs: ResolvedDirectories;
   claudeDir?: string;
   codexDir?: string;
-  geminiDir?: string;
   grokDir?: string;
   opencodeDir?: string;
-  openclawDir?: string;
-  hermesDir?: string;
   piDir?: string;
   onDirectoryChange: (app: DirectoryAppId, value?: string) => void;
   onBrowseDirectory: (app: DirectoryAppId) => Promise<void>;
@@ -27,11 +24,8 @@ export function DirectorySettings({
   resolvedDirs,
   claudeDir,
   codexDir,
-  geminiDir,
   grokDir,
   opencodeDir,
-  openclawDir,
-  hermesDir,
   piDir,
   onDirectoryChange,
   onBrowseDirectory,
@@ -92,17 +86,6 @@ export function DirectorySettings({
         />
 
         <DirectoryInput
-          label={t("settings.geminiConfigDir")}
-          description={undefined}
-          value={geminiDir}
-          resolvedValue={resolvedDirs.gemini}
-          placeholder={t("settings.browsePlaceholderGemini")}
-          onChange={(val) => onDirectoryChange("gemini", val)}
-          onBrowse={() => onBrowseDirectory("gemini")}
-          onReset={() => onResetDirectory("gemini")}
-        />
-
-        <DirectoryInput
           label={t("settings.grokConfigDir")}
           description={undefined}
           value={grokDir}
@@ -122,28 +105,6 @@ export function DirectorySettings({
           onChange={(val) => onDirectoryChange("opencode", val)}
           onBrowse={() => onBrowseDirectory("opencode")}
           onReset={() => onResetDirectory("opencode")}
-        />
-
-        <DirectoryInput
-          label={t("settings.openclawConfigDir")}
-          description={undefined}
-          value={openclawDir}
-          resolvedValue={resolvedDirs.openclaw}
-          placeholder={t("settings.browsePlaceholderOpenclaw")}
-          onChange={(val) => onDirectoryChange("openclaw", val)}
-          onBrowse={() => onBrowseDirectory("openclaw")}
-          onReset={() => onResetDirectory("openclaw")}
-        />
-
-        <DirectoryInput
-          label={t("settings.hermesConfigDir")}
-          description={undefined}
-          value={hermesDir}
-          resolvedValue={resolvedDirs.hermes}
-          placeholder={t("settings.browsePlaceholderHermes")}
-          onChange={(val) => onDirectoryChange("hermes", val)}
-          onBrowse={() => onBrowseDirectory("hermes")}
-          onReset={() => onResetDirectory("hermes")}
         />
 
         <DirectoryInput

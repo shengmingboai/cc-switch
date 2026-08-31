@@ -12,7 +12,7 @@ use super::{
     log_codes::fwd as log_fwd,
     provider_router::ProviderRouter,
     providers::{
-        codex_chat_history::CodexChatHistoryStore, gemini_shadow::GeminiShadowStore, get_adapter,
+        codex_chat_history::CodexChatHistoryStore, get_adapter,
         AuthInfo, AuthStrategy, ProviderAdapter, ProviderType,
     },
     thinking_budget_rectifier::{rectify_thinking_budget, should_rectify_thinking_budget},
@@ -160,7 +160,6 @@ pub struct RequestForwarder {
     router: Arc<ProviderRouter>,
     status: Arc<RwLock<ProxyStatus>>,
     current_providers: Arc<RwLock<std::collections::HashMap<String, (String, String)>>>,
-    gemini_shadow: Arc<GeminiShadowStore>,
     codex_chat_history: Arc<CodexChatHistoryStore>,
     /// 故障转移切换管理器
     failover_manager: Arc<FailoverSwitchManager>,
@@ -168,7 +167,7 @@ pub struct RequestForwarder {
     app_handle: Option<tauri::AppHandle>,
     /// 请求开始时的"当前供应商 ID"（用于判断是否需要同步 UI/托盘）
     current_provider_id_at_start: String,
-    /// 代理会话 ID（用于 Gemini Native shadow replay）
+    /// 代理会话 ID
     session_id: String,
     /// Session ID 是否由客户端提供；生成值不能作为上游缓存身份。
     session_client_provided: bool,
@@ -242,7 +241,6 @@ impl RequestForwarder {
         non_streaming_timeout: u64,
         status: Arc<RwLock<ProxyStatus>>,
         current_providers: Arc<RwLock<std::collections::HashMap<String, (String, String)>>>,
-        gemini_shadow: Arc<GeminiShadowStore>,
         codex_chat_history: Arc<CodexChatHistoryStore>,
         failover_manager: Arc<FailoverSwitchManager>,
         app_handle: Option<tauri::AppHandle>,
@@ -263,7 +261,6 @@ impl RequestForwarder {
             router,
             status,
             current_providers,
-            gemini_shadow,
             codex_chat_history,
             failover_manager,
             app_handle,
@@ -1484,13 +1481,7 @@ impl RequestForwarder {
         let is_codex_alpha_search = matches!(app_type, AppType::Codex)
             && split_endpoint_and_query(&effective_endpoint).0 == "/alpha/search";
 
-        let url = if matches!(resolved_claude_api_format.as_deref(), Some("gemini_native")) {
-            super::gemini_url::resolve_gemini_native_url(
-                &base_url,
-                &effective_endpoint,
-                is_full_url,
-            )
-        } else if is_full_url && is_codex_alpha_search {
+        let url = if is_full_url && is_codex_alpha_search {
             rewrite_codex_alpha_search_full_url(&base_url, passthrough_query.as_deref())?
         } else if is_full_url
             || codex_chat_base_is_full_endpoint
@@ -1502,8 +1493,7 @@ impl RequestForwarder {
         };
 
         // 记录映射后的出站模型名（此时 mapped_body 已完成接管映射 / [1m] 剥离 /
-        // Copilot 归一化）。格式转换后若 body 仍带 model 字段会在下方刷新覆盖；
-        // gemini_native 等模型在 URL 中的格式则保留此处的转换前真值。
+        // Copilot 归一化）。格式转换后若 body 仍带 model 字段会在下方刷新覆盖。
         let mut outbound_model = mapped_body
             .get("model")
             .and_then(|m| m.as_str())
@@ -1612,7 +1602,6 @@ impl RequestForwarder {
                     api_format,
                     self.session_client_provided
                         .then_some(self.session_id.as_str()),
-                    Some(self.gemini_shadow.as_ref()),
                 )?
             } else {
                 adapter.transform_request(mapped_body, provider)?
@@ -1697,8 +1686,7 @@ impl RequestForwarder {
             &filtered_body,
             self.session_client_provided,
         );
-        let request_is_streaming =
-            is_streaming_request(&effective_endpoint, &filtered_body, headers);
+        let request_is_streaming = is_streaming_request(&filtered_body, headers);
         let force_identity_encoding = needs_transform
             || codex_responses_to_chat
             || codex_responses_to_anthropic
@@ -1868,10 +1856,8 @@ impl RequestForwarder {
                 }
             }
 
-            for secret in std::iter::once(&auth.api_key).chain(auth.access_token.iter()) {
-                if !secret.is_empty() && !log_secrets.contains(secret) {
-                    log_secrets.push(secret.clone());
-                }
+            if !auth.api_key.is_empty() && !log_secrets.contains(&auth.api_key) {
+                log_secrets.push(auth.api_key.clone());
             }
 
             adapter.get_auth_headers(&auth)?
@@ -2244,7 +2230,7 @@ impl RequestForwarder {
         }
 
         // 序列化请求体。GET/HEAD 是 idempotent/safe 方法，按 HTTP 语义不应携带 body；
-        // 强行附带 JSON body 会让某些上游（如 Google Gemini 的 models.list）拒绝请求。
+        // 强行附带 JSON body 会让某些上游的 models.list 请求拒绝请求。
         let body_bytes = if matches!(method, &http::Method::GET | &http::Method::HEAD) {
             Vec::new()
         } else {
@@ -3207,7 +3193,7 @@ fn rewrite_claude_transform_endpoint(
     endpoint: &str,
     api_format: &str,
     is_copilot: bool,
-    body: &Value,
+    _body: &Value,
 ) -> (String, Option<String>) {
     let (path, query) = split_endpoint_and_query(endpoint);
     let passthrough_query = if is_claude_messages_path(path) {
@@ -3218,36 +3204,6 @@ fn rewrite_claude_transform_endpoint(
 
     if !is_claude_messages_path(path) {
         return (endpoint.to_string(), passthrough_query);
-    }
-
-    if api_format == "gemini_native" {
-        let model =
-            super::providers::transform_gemini::extract_gemini_model(body).unwrap_or("unknown");
-        // Accept both bare ids (`gemini-2.5-pro`) and the resource-name
-        // form (`models/gemini-2.5-pro`) that Gemini SDKs emit. See
-        // `normalize_gemini_model_id` for rationale.
-        let model = super::gemini_url::normalize_gemini_model_id(model);
-        let is_stream = body
-            .get("stream")
-            .and_then(|value| value.as_bool())
-            .unwrap_or(false);
-        let target_path = if is_stream {
-            format!("/v1beta/models/{model}:streamGenerateContent")
-        } else {
-            format!("/v1beta/models/{model}:generateContent")
-        };
-
-        let rewritten_query = merge_query_params(
-            passthrough_query.as_deref(),
-            if is_stream { Some("alt=sse") } else { None },
-        );
-
-        let rewritten = match rewritten_query.as_deref() {
-            Some(query) if !query.is_empty() => format!("{target_path}?{query}"),
-            _ => target_path,
-        };
-
-        return (rewritten, rewritten_query);
     }
 
     let target_path = if is_copilot && api_format == "openai_responses" {
@@ -3266,26 +3222,6 @@ fn rewrite_claude_transform_endpoint(
     };
 
     (rewritten, passthrough_query)
-}
-
-fn merge_query_params(base_query: Option<&str>, extra_param: Option<&str>) -> Option<String> {
-    let mut params: Vec<String> = base_query
-        .into_iter()
-        .flat_map(|query| query.split('&'))
-        .filter(|pair| !pair.is_empty())
-        .filter(|pair| !pair.starts_with("alt="))
-        .map(ToString::to_string)
-        .collect();
-
-    if let Some(extra_param) = extra_param {
-        params.push(extra_param.to_string());
-    }
-
-    if params.is_empty() {
-        None
-    } else {
-        Some(params.join("&"))
-    }
 }
 
 fn append_query_to_full_url(base_url: &str, query: Option<&str>) -> String {
@@ -3428,7 +3364,7 @@ fn should_preserve_exact_header_case(
     resolved_claude_api_format: Option<&str>,
     is_copilot: bool,
 ) -> bool {
-    if matches!(adapter_name, "Codex" | "Gemini") {
+    if adapter_name == "Codex" {
         return false;
     }
 
@@ -3439,16 +3375,12 @@ fn should_preserve_exact_header_case(
     matches!(resolved_claude_api_format, None | Some("anthropic"))
 }
 
-fn is_streaming_request(endpoint: &str, body: &Value, headers: &axum::http::HeaderMap) -> bool {
+fn is_streaming_request(body: &Value, headers: &axum::http::HeaderMap) -> bool {
     if body
         .get("stream")
         .and_then(|value| value.as_bool())
         .unwrap_or(false)
     {
-        return true;
-    }
-
-    if endpoint.contains("streamGenerateContent") || endpoint.contains("alt=sse") {
         return true;
     }
 
@@ -3460,12 +3392,8 @@ fn is_streaming_request(endpoint: &str, body: &Value, headers: &axum::http::Head
 }
 
 #[cfg(test)]
-fn should_force_identity_encoding(
-    endpoint: &str,
-    body: &Value,
-    headers: &axum::http::HeaderMap,
-) -> bool {
-    is_streaming_request(endpoint, body, headers)
+fn should_force_identity_encoding(body: &Value, headers: &axum::http::HeaderMap) -> bool {
+    is_streaming_request(body, headers)
 }
 
 fn map_reqwest_send_error(error: reqwest::Error) -> ProxyError {
@@ -3674,7 +3602,7 @@ fn log_prompt_cache_trace(
         "[CacheTrace] app={}, provider={}, endpoint={}, api_format={}, session_client_provided={}, prompt_cache_key={}, store={}, stream={}, instructions_hash={}, system_hash={}, tools_hash={}, input_hash={}, messages_hash={}, include_hash={}, cache_controls={}, body_hash={}",
         app_type.as_str(),
         provider.id,
-        // Gemini 的 endpoint 带 ?key=<API_KEY>；脱敏剥掉 query 再落盘。
+        // 端点可能带认证 query；脱敏时剥掉 query 再落盘。
         crate::redact_url_for_log(endpoint),
         api_format.unwrap_or("native"),
         session_client_provided,
@@ -3784,7 +3712,6 @@ mod tests {
             router: Arc::new(ProviderRouter::new(db.clone())),
             status: Arc::new(RwLock::new(ProxyStatus::default())),
             current_providers: Arc::new(RwLock::new(HashMap::new())),
-            gemini_shadow: Arc::new(GeminiShadowStore::new()),
             codex_chat_history: Arc::new(CodexChatHistoryStore::default()),
             failover_manager: Arc::new(FailoverSwitchManager::new(db)),
             app_handle: None,
@@ -4245,7 +4172,7 @@ mod tests {
             "Codex", &provider, None, false
         ));
         assert!(!should_preserve_exact_header_case(
-            "Gemini", &provider, None, false
+            "Codex", &provider, None, false
         ));
     }
 
@@ -4695,53 +4622,6 @@ mod tests {
     }
 
     #[test]
-    fn rewrite_claude_transform_endpoint_maps_gemini_generate_content() {
-        let (endpoint, passthrough_query) = rewrite_claude_transform_endpoint(
-            "/v1/messages?beta=true&x-id=1",
-            "gemini_native",
-            false,
-            &json!({ "model": "gemini-2.5-pro" }),
-        );
-
-        assert_eq!(
-            endpoint,
-            "/v1beta/models/gemini-2.5-pro:generateContent?x-id=1"
-        );
-        assert_eq!(passthrough_query.as_deref(), Some("x-id=1"));
-    }
-
-    /// Regression: body.model arriving as the resource-name form
-    /// `models/gemini-2.5-pro` must not produce a doubled
-    /// `/v1beta/models/models/...` path.
-    #[test]
-    fn rewrite_claude_transform_endpoint_strips_gemini_model_resource_prefix() {
-        let (endpoint, _) = rewrite_claude_transform_endpoint(
-            "/v1/messages",
-            "gemini_native",
-            false,
-            &json!({ "model": "models/gemini-2.5-pro" }),
-        );
-
-        assert_eq!(endpoint, "/v1beta/models/gemini-2.5-pro:generateContent");
-    }
-
-    #[test]
-    fn rewrite_claude_transform_endpoint_maps_gemini_streaming() {
-        let (endpoint, passthrough_query) = rewrite_claude_transform_endpoint(
-            "/v1/messages?beta=true",
-            "gemini_native",
-            false,
-            &json!({ "model": "gemini-2.5-flash", "stream": true }),
-        );
-
-        assert_eq!(
-            endpoint,
-            "/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse"
-        );
-        assert_eq!(passthrough_query.as_deref(), Some("alt=sse"));
-    }
-
-    #[test]
     fn append_query_to_full_url_preserves_existing_query_string() {
         let url = append_query_to_full_url("https://relay.example/api?foo=bar", Some("x-id=1"));
 
@@ -4790,71 +4670,11 @@ mod tests {
     }
 
     #[test]
-    fn build_gemini_native_url_uses_origin_when_base_ends_with_v1beta() {
-        let url = crate::proxy::gemini_url::build_gemini_native_url(
-            "https://generativelanguage.googleapis.com/v1beta",
-            "/v1beta/models/gemini-2.5-pro:generateContent",
-        );
-
-        assert_eq!(
-            url,
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent"
-        );
-    }
-
-    #[test]
-    fn build_gemini_native_url_uses_origin_when_base_already_contains_models_prefix() {
-        let url = crate::proxy::gemini_url::build_gemini_native_url(
-            "https://generativelanguage.googleapis.com/v1beta/models",
-            "/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse",
-        );
-
-        assert_eq!(
-            url,
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse"
-        );
-    }
-
-    #[test]
-    fn resolve_gemini_native_url_keeps_opaque_full_url_as_is() {
-        let url = crate::proxy::gemini_url::resolve_gemini_native_url(
-            "https://relay.example/custom/generate-content",
-            "/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse",
-            true,
-        );
-
-        assert_eq!(url, "https://relay.example/custom/generate-content?alt=sse");
-    }
-
-    #[test]
     fn force_identity_for_stream_flag_requests() {
         let headers = HeaderMap::new();
 
         assert!(should_force_identity_encoding(
-            "/v1/responses",
             &json!({ "stream": true }),
-            &headers
-        ));
-    }
-
-    #[test]
-    fn force_identity_for_gemini_stream_endpoints() {
-        let headers = HeaderMap::new();
-
-        assert!(should_force_identity_encoding(
-            "/v1beta/models/gemini-2.5-pro:streamGenerateContent?alt=sse",
-            &json!({ "model": "gemini-2.5-pro" }),
-            &headers
-        ));
-    }
-
-    #[test]
-    fn streaming_request_detects_gemini_sse_without_body_stream_flag() {
-        let headers = HeaderMap::new();
-
-        assert!(is_streaming_request(
-            "/v1beta/models/gemini-2.5-pro:streamGenerateContent?alt=sse",
-            &json!({ "model": "gemini-2.5-pro" }),
             &headers
         ));
     }
@@ -4865,7 +4685,6 @@ mod tests {
         headers.insert(ACCEPT, HeaderValue::from_static("text/event-stream"));
 
         assert!(should_force_identity_encoding(
-            "/v1/responses",
             &json!({ "model": "gpt-5" }),
             &headers
         ));
@@ -4876,7 +4695,6 @@ mod tests {
         let headers = HeaderMap::new();
 
         assert!(!should_force_identity_encoding(
-            "/v1/responses",
             &json!({ "model": "gpt-5" }),
             &headers
         ));
@@ -5064,20 +4882,6 @@ mod tests {
         })
     }
 
-    fn body_with_gemini_image() -> Value {
-        json!({
-            "contents": [{
-                "role": "user",
-                "parts": [{
-                    "inlineData": {
-                        "mimeType": "image/png",
-                        "data": "GEMINI_SENTINEL"
-                    }
-                }]
-            }]
-        })
-    }
-
     fn image_unsupported_error() -> ProxyError {
         ProxyError::UpstreamError {
             status: 400,
@@ -5194,19 +4998,13 @@ mod tests {
     }
 
     #[test]
-    fn reactive_triggers_for_chat_tool_and_gemini_images() {
+    fn reactive_triggers_for_chat_tool_images() {
         let fwd = forwarder_with_rectifier(RectifierConfig::default());
 
         assert!(fwd.media_retry_should_trigger(
             "Claude",
             false,
             &body_with_stringified_chat_tool_image(),
-            &image_unsupported_error()
-        ));
-        assert!(fwd.media_retry_should_trigger(
-            "Claude",
-            false,
-            &body_with_gemini_image(),
             &image_unsupported_error()
         ));
     }

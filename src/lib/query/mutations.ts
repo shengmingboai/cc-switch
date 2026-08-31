@@ -10,8 +10,6 @@ import {
   translatePiProviderMutationError,
 } from "@/utils/errorUtils";
 import { generateUUID } from "@/utils/uuid";
-import { openclawKeys } from "@/hooks/useOpenClaw";
-import { invalidateHermesProviderCaches } from "@/hooks/useHermes";
 import { proxyKeys } from "@/lib/query/proxy";
 import { usageKeys } from "@/lib/query/usage";
 import { invalidatePiProviderCaches } from "@/lib/query/pi";
@@ -62,8 +60,6 @@ export const useAddProviderMutation = (appId: AppId) => {
 
       if (
         appId === "opencode" ||
-        appId === "openclaw" ||
-        appId === "hermes" ||
         appId === "pi"
       ) {
         if (
@@ -110,15 +106,6 @@ export const useAddProviderMutation = (appId: AppId) => {
         });
       }
 
-      if (appId === "openclaw") {
-        await queryClient.invalidateQueries({
-          queryKey: openclawKeys.health,
-        });
-      }
-
-      if (appId === "hermes") {
-        await invalidateHermesProviderCaches(queryClient);
-      }
       try {
         await providersApi.updateTrayMenu();
       } catch (trayError) {
@@ -146,8 +133,8 @@ export const useAddProviderMutation = (appId: AppId) => {
         rawDetail ||
         t("common.unknown");
       toast.error(
-        t("notifications.addFailed", {
-          defaultValue: "添加供应商失败: {{error}}",
+        t("notifications.deleteFailed", {
+          defaultValue: "删除供应商失败: {{error}}",
           error: detail,
         }),
       );
@@ -185,21 +172,11 @@ export const useUpdateProviderMutation = (appId: AppId) => {
           queryKey: usageKeys.script(variables.originalId, appId),
         });
       }
-      if (appId === "openclaw") {
-        await queryClient.invalidateQueries({
-          queryKey: openclawKeys.health,
-        });
-      }
-      if (appId === "hermes") {
-        await invalidateHermesProviderCaches(queryClient);
-      }
       toast.success(
         t("notifications.updateSuccess", {
           defaultValue: "供应商更新成功",
         }),
-        {
-          closeButton: true,
-        },
+        { closeButton: true },
       );
     },
     onError: (error: Error) => {
@@ -235,30 +212,19 @@ export const useDeleteProviderMutation = (appId: AppId) => {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["providers", appId] });
-
       if (appId === "opencode") {
+        await queryClient.invalidateQueries({
+          queryKey: ["opencodeLiveProviderIds"],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["opencode", "runtime-models"],
+        });
         await queryClient.invalidateQueries({
           queryKey: ["omo", "current-provider-id"],
         });
         await queryClient.invalidateQueries({
-          queryKey: ["omo", "provider-count"],
-        });
-        await queryClient.invalidateQueries({
           queryKey: ["omo-slim", "current-provider-id"],
         });
-        await queryClient.invalidateQueries({
-          queryKey: ["omo-slim", "provider-count"],
-        });
-      }
-
-      if (appId === "openclaw") {
-        await queryClient.invalidateQueries({
-          queryKey: openclawKeys.health,
-        });
-      }
-
-      if (appId === "hermes") {
-        await invalidateHermesProviderCaches(queryClient);
       }
       try {
         await providersApi.updateTrayMenu();
@@ -268,14 +234,11 @@ export const useDeleteProviderMutation = (appId: AppId) => {
           trayError,
         );
       }
-
       toast.success(
         t("notifications.deleteSuccess", {
           defaultValue: "供应商已删除",
         }),
-        {
-          closeButton: true,
-        },
+        { closeButton: true },
       );
     },
     onError: (error: Error) => {
@@ -318,7 +281,7 @@ export const useSwitchProviderMutation = (appId: AppId) => {
         });
       }
 
-      // OpenCode/OpenClaw: also invalidate live provider IDs cache to update button state
+      // OpenCode: also invalidate live provider IDs cache to update button state
       if (appId === "opencode") {
         await queryClient.invalidateQueries({
           queryKey: ["opencodeLiveProviderIds"],
@@ -332,20 +295,6 @@ export const useSwitchProviderMutation = (appId: AppId) => {
         await queryClient.invalidateQueries({
           queryKey: ["omo-slim", "current-provider-id"],
         });
-      }
-      if (appId === "openclaw") {
-        await queryClient.invalidateQueries({
-          queryKey: openclawKeys.liveProviderIds,
-        });
-        await queryClient.invalidateQueries({
-          queryKey: openclawKeys.defaultModel,
-        });
-        await queryClient.invalidateQueries({
-          queryKey: openclawKeys.health,
-        });
-      }
-      if (appId === "hermes") {
-        await invalidateHermesProviderCaches(queryClient);
       }
       try {
         await providersApi.updateTrayMenu();

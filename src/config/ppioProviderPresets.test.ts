@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest";
 import { claudeDesktopProviderPresets } from "./claudeDesktopProviderPresets";
 import { providerPresets } from "./claudeProviderPresets";
 import { codexProviderPresets } from "./codexProviderPresets";
-import { hermesProviderPresets } from "./hermesProviderPresets";
-import { openclawProviderPresets } from "./openclawProviderPresets";
 import { opencodeProviderPresets } from "./opencodeProviderPresets";
 import { getIcon, getIconMetadata } from "../icons/extracted";
 
@@ -13,8 +11,6 @@ const ppioPresetCollections = [
   ["Claude Desktop", claudeDesktopProviderPresets],
   ["Codex", codexProviderPresets],
   ["OpenCode", opencodeProviderPresets],
-  ["OpenClaw", openclawProviderPresets],
-  ["Hermes", hermesProviderPresets],
 ] as const;
 
 const ppioModelId = "deepseek/deepseek-v4-flash-0731";
@@ -131,65 +127,6 @@ describe("PPIO provider presets", () => {
     });
     expect(Object.keys(opencode.settingsConfig.models)).toEqual([ppioModelId]);
     expect(`${opencode.settingsConfig.options.baseURL}/chat/completions`).toBe(
-      ppioChatCompletionsEndpoint,
-    );
-  });
-
-  it("configures OpenClaw with a versioned OpenAI Chat base", () => {
-    const openclaw = getPpioPreset(openclawProviderPresets)!;
-    expect(openclaw).toMatchObject({
-      ...ppioBrandFields,
-      settingsConfig: {
-        baseUrl: ppioOpenAiEndpoint,
-        apiKey: "",
-        api: "openai-completions",
-        models: [
-          {
-            id: ppioModelId,
-            name: ppioModelName,
-            reasoning: true,
-            input: ["text"],
-            contextWindow: 1048576,
-            maxTokens: 393216,
-            cost: { input: 0.14, output: 0.29, cacheRead: 0.03 },
-          },
-        ],
-      },
-      templateValues: {
-        apiKey: { label: "API Key", placeholder: "sk-...", editorValue: "" },
-      },
-      suggestedDefaults: {
-        model: { primary: `ppio/${ppioModelId}` },
-        modelCatalog: { [`ppio/${ppioModelId}`]: { alias: ppioModelName } },
-      },
-    });
-    expect(`${openclaw.settingsConfig.baseUrl}/chat/completions`).toBe(
-      ppioChatCompletionsEndpoint,
-    );
-  });
-
-  it("configures Hermes with a versioned OpenAI Chat base", () => {
-    const hermes = getPpioPreset(hermesProviderPresets)!;
-    expect(hermes).toMatchObject({
-      ...ppioBrandFields,
-      settingsConfig: {
-        name: "ppio",
-        base_url: ppioOpenAiEndpoint,
-        api_key: "",
-        api_mode: "chat_completions",
-        models: [
-          {
-            id: ppioModelId,
-            name: ppioModelName,
-            context_length: 1048576,
-          },
-        ],
-      },
-      suggestedDefaults: {
-        model: { default: ppioModelId, provider: "ppio" },
-      },
-    });
-    expect(`${hermes.settingsConfig.base_url}/chat/completions`).toBe(
       ppioChatCompletionsEndpoint,
     );
   });

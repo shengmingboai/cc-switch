@@ -11,17 +11,13 @@ mod config;
 mod database;
 mod deeplink;
 mod error;
-mod gemini_config;
-mod gemini_mcp;
 mod grok_config;
-pub mod hermes_config;
 mod init_status;
 mod lightweight;
 #[cfg(target_os = "linux")]
 mod linux_fix;
 mod mcp;
 mod model_capabilities;
-mod openclaw_config;
 mod opencode_config;
 mod panic_hook;
 mod pi_config;
@@ -52,11 +48,11 @@ pub use deeplink::{import_provider_from_deeplink, parse_deeplink_url, DeepLinkIm
 pub use error::AppError;
 pub use grok_config::get_grok_config_path;
 pub use mcp::{
-    import_from_claude, import_from_codex, import_from_gemini, import_from_grokbuild,
-    remove_server_from_claude, remove_server_from_codex, remove_server_from_gemini,
+    import_from_claude, import_from_codex, import_from_grokbuild,
+    remove_server_from_claude, remove_server_from_codex,
     remove_server_from_grokbuild, sync_enabled_to_claude, sync_enabled_to_codex,
-    sync_enabled_to_gemini, sync_single_server_to_claude, sync_single_server_to_codex,
-    sync_single_server_to_gemini, sync_single_server_to_grokbuild,
+    sync_single_server_to_claude, sync_single_server_to_codex,
+    sync_single_server_to_grokbuild,
 };
 pub use prompt::Prompt;
 pub use provider::{Provider, ProviderMeta};
@@ -728,7 +724,7 @@ pub fn run() {
                 Err(e) => log::warn!("✗ Failed to read skills migration flag: {e}"),
             }
 
-            // 1.5. 自动导入 live 配置 + seed 官方预设供应商（Claude / Codex / Gemini）
+            // 1.5. 自动导入 live 配置并 seed 官方预设供应商
             //
             // 先 import 后 seed 是有意为之：先把用户手动配置的 settings.json / auth.json / .env
             // 落成 "default" provider 设为 current，再追加官方预设（is_current=false）。
@@ -870,20 +866,6 @@ pub fn run() {
                 Ok(_) => log::debug!("○ No OpenCode provider changes from live config"),
                 Err(e) => log::warn!("✗ Failed to import OpenCode providers: {e}"),
             }
-            match crate::services::provider::import_openclaw_providers_from_live(&app_state) {
-                Ok(count) if count > 0 => {
-                    log::info!("✓ Synced {count} OpenClaw provider(s) from live config");
-                }
-                Ok(_) => log::debug!("○ No OpenClaw provider changes from live config"),
-                Err(e) => log::warn!("✗ Failed to import OpenClaw providers: {e}"),
-            }
-            match crate::services::provider::import_hermes_providers_from_live(&app_state) {
-                Ok(count) if count > 0 => {
-                    log::info!("✓ Synced {count} Hermes provider(s) from live config");
-                }
-                Ok(_) => log::debug!("○ No Hermes provider changes from live config"),
-                Err(e) => log::warn!("✗ Failed to import Hermes providers: {e}"),
-            }
             match crate::services::provider::import_pi_providers_from_live(&app_state) {
                 Ok(count) if count > 0 => {
                     log::info!("✓ Synced {count} Pi provider(s) from native config");
@@ -963,14 +945,6 @@ pub fn run() {
                     Err(e) => log::warn!("✗ Failed to import Codex MCP: {e}"),
                 }
 
-                match crate::services::mcp::McpService::import_from_gemini(&app_state) {
-                    Ok(count) if count > 0 => {
-                        log::info!("✓ Imported {count} MCP server(s) from Gemini");
-                    }
-                    Ok(_) => log::debug!("○ No Gemini MCP servers found to import"),
-                    Err(e) => log::warn!("✗ Failed to import Gemini MCP: {e}"),
-                }
-
                 match crate::services::mcp::McpService::import_from_grokbuild(&app_state) {
                     Ok(count) if count > 0 => {
                         log::info!("✓ Imported {count} MCP server(s) from Grok Build");
@@ -987,13 +961,6 @@ pub fn run() {
                     Err(e) => log::warn!("✗ Failed to import OpenCode MCP: {e}"),
                 }
 
-                match crate::services::mcp::McpService::import_from_hermes(&app_state) {
-                    Ok(count) if count > 0 => {
-                        log::info!("✓ Imported {count} MCP server(s) from Hermes");
-                    }
-                    Ok(_) => log::debug!("○ No Hermes MCP servers found to import"),
-                    Err(e) => log::warn!("✗ Failed to import Hermes MCP: {e}"),
-                }
             }
 
             // 4. 导入提示词文件（表空时触发）
@@ -1003,11 +970,8 @@ pub fn run() {
                 for app in [
                     crate::app_config::AppType::Claude,
                     crate::app_config::AppType::Codex,
-                    crate::app_config::AppType::Gemini,
                     crate::app_config::AppType::GrokBuild,
                     crate::app_config::AppType::OpenCode,
-                    crate::app_config::AppType::OpenClaw,
-                    crate::app_config::AppType::Hermes,
                     crate::app_config::AppType::Pi,
                 ] {
                     match crate::services::prompt::PromptService::import_from_file_on_first_launch(
@@ -1239,17 +1203,6 @@ pub fn run() {
                     } else {
                         log::info!("Live 配置已恢复");
                     }
-                }
-
-                // 必须排在 auto-extract 之前：先把历史泄漏进 Gemini 共享片段的凭据
-                // 清干净，否则紧接着的提取会基于被污染的 live 再写一遍。
-                if let Err(e) =
-                    crate::services::provider::ProviderService::scrub_leaked_gemini_common_config(
-                        &state,
-                    )
-                    .await
-                {
-                    log::warn!("清理 Gemini 通用配置泄漏凭据失败: {e}");
                 }
 
                 initialize_common_config_snippets(&state);
@@ -1647,32 +1600,6 @@ pub fn run() {
             // OpenCode specific
             commands::import_opencode_providers_from_live,
             commands::get_opencode_live_provider_ids,
-            // OpenClaw specific
-            commands::import_openclaw_providers_from_live,
-            commands::get_openclaw_live_provider_ids,
-            commands::get_openclaw_live_provider,
-            commands::scan_openclaw_config_health,
-            commands::get_openclaw_default_model,
-            commands::set_openclaw_default_model,
-            commands::get_openclaw_model_catalog,
-            commands::set_openclaw_model_catalog,
-            commands::get_openclaw_agents_defaults,
-            commands::set_openclaw_agents_defaults,
-            commands::get_openclaw_env,
-            commands::set_openclaw_env,
-            commands::get_openclaw_tools,
-            commands::set_openclaw_tools,
-            // Hermes specific
-            commands::import_hermes_providers_from_live,
-            commands::get_hermes_live_provider_ids,
-            commands::get_hermes_live_provider,
-            commands::get_hermes_model_config,
-            commands::open_hermes_web_ui,
-            commands::launch_hermes_dashboard,
-            commands::get_hermes_memory,
-            commands::set_hermes_memory,
-            commands::get_hermes_memory_limits,
-            commands::set_hermes_memory_enabled,
             // Global upstream proxy
             commands::get_global_proxy_url,
             commands::set_global_proxy_url,
@@ -1713,16 +1640,6 @@ pub fn run() {
             commands::read_omo_slim_local_file,
             commands::get_current_omo_slim_provider_id,
             commands::disable_current_omo_slim,
-            // Workspace files (OpenClaw)
-            commands::read_workspace_file,
-            commands::write_workspace_file,
-            // Daily memory files (OpenClaw workspace)
-            commands::list_daily_memory_files,
-            commands::read_daily_memory_file,
-            commands::write_daily_memory_file,
-            commands::delete_daily_memory_file,
-            commands::search_daily_memory_files,
-            commands::open_workspace_directory,
             // lightweight mode (for testing or low-resource environments)
             commands::enter_lightweight_mode,
             commands::exit_lightweight_mode,
@@ -1905,7 +1822,7 @@ pub fn run() {
 /// 应用退出前的清理工作
 ///
 /// 在应用退出前检查代理服务器状态，如果正在运行则停止代理并恢复 Live 配置。
-/// 确保 Claude Code/Codex/Gemini 的配置不会处于损坏状态。
+/// 确保支持的 CLI 配置不会处于损坏状态。
 /// 使用 stop_with_restore_keep_state 保留 settings 表中的代理状态，下次启动时自动恢复。
 pub async fn cleanup_before_exit(app_handle: &tauri::AppHandle) {
     if let Some(state) = app_handle.try_state::<store::AppState>() {
@@ -1972,7 +1889,7 @@ pub(crate) fn remove_tray_icon_before_exit(app_handle: &tauri::AppHandle) {
 ///
 /// 检查 `proxy_config.enabled` 字段，如果有任一应用的状态为 `true`，
 /// 则自动启动代理服务并接管对应应用的 Live 配置。
-const PROXY_STARTUP_APP_TYPES: [&str; 4] = ["claude", "codex", "gemini", "grokbuild"];
+const PROXY_STARTUP_APP_TYPES: [&str; 3] = ["claude", "codex", "grokbuild"];
 
 async fn enabled_proxy_apps_on_startup(db: &database::Database) -> Vec<&'static str> {
     let mut apps = Vec::new();
@@ -2084,7 +2001,6 @@ fn initialize_common_config_snippets(state: &store::AppState) {
         for app_type in [
             crate::app_config::AppType::Claude,
             crate::app_config::AppType::Codex,
-            crate::app_config::AppType::Gemini,
         ] {
             if let Err(e) = crate::services::provider::ProviderService::migrate_legacy_common_config_usage_if_needed(
                 state,
@@ -2334,8 +2250,8 @@ mod tests {
         assert_eq!(redact_url_for_log("not-a-url?token=secret"), "not-a-url");
         // 不再对 path 段做“看起来像密钥”的形状猜测，正常路径完整保留。
         assert_eq!(
-            redact_url_for_log("https://host.example/v1/models/gemini-2.5-pro"),
-            "https://host.example/v1/models/gemini-2.5-pro"
+            redact_url_for_log("https://host.example/v1/models/claude-sonnet-5"),
+            "https://host.example/v1/models/claude-sonnet-5"
         );
     }
 

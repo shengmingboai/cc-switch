@@ -2,7 +2,7 @@
 //!
 //! This module implements the ccswitch:// protocol for importing configurations
 //! via deep links. Supports importing:
-//! - Provider configurations (Claude/Codex/Gemini)
+//! - Provider configurations
 //! - MCP server configurations
 //! - Prompts
 //! - Skills
@@ -40,7 +40,7 @@ pub struct DeepLinkImportRequest {
     pub resource: String,
 
     // ============ Common fields ============
-    /// Target application (claude/codex/gemini) - for provider, prompt, skill
+    /// Target application for provider, prompt, and skill resources
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app: Option<String>,
     /// Resource name
@@ -88,7 +88,7 @@ pub struct DeepLinkImportRequest {
     pub description: Option<String>,
 
     // ============ MCP-specific fields ============
-    /// Target applications for MCP (comma-separated: "claude,codex,gemini")
+    /// Target applications for MCP (comma-separated app identifiers)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub apps: Option<String>,
 

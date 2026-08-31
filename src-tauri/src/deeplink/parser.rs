@@ -81,7 +81,7 @@ fn parse_provider_deeplink(
     // Validate app type
     if !matches!(
         app.as_str(),
-        "claude" | "codex" | "gemini" | "grokbuild" | "opencode" | "openclaw" | "hermes"
+        "claude" | "codex" | "grokbuild" | "opencode"
     ) {
         return Err(AppError::InvalidInput(format!(
             "Invalid provider app type: '{app}'"
@@ -190,10 +190,10 @@ fn parse_prompt_deeplink(
     // Validate app type
     if !matches!(
         app.as_str(),
-        "claude" | "codex" | "gemini" | "grokbuild" | "opencode" | "openclaw" | "hermes" | "pi"
+        "claude" | "codex" | "grokbuild" | "opencode" | "pi"
     ) {
         return Err(AppError::InvalidInput(format!(
-            "Invalid app type: must be 'claude', 'codex', 'gemini', 'grokbuild', 'opencode', 'openclaw', 'hermes', or 'pi', got '{app}'"
+            "Invalid app type: must be 'claude', 'codex', 'grokbuild', 'opencode', or 'pi', got '{app}'"
         )));
     }
 
@@ -264,15 +264,12 @@ fn parse_mcp_deeplink(
             trimmed,
             "claude"
                 | "codex"
-                | "gemini"
                 | "grokbuild"
                 | "grok"
                 | "opencode"
-                | "openclaw"
-                | "hermes"
         ) {
             return Err(AppError::InvalidInput(format!(
-                "Invalid app in 'apps': must be 'claude', 'codex', 'gemini', 'grokbuild', 'opencode', 'openclaw', or 'hermes', got '{trimmed}'"
+                "Invalid app in 'apps': must be 'claude', 'codex', 'grokbuild', or 'opencode', got '{trimmed}'"
             )));
         }
     }
