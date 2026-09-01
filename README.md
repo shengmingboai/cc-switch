@@ -13,7 +13,7 @@
 
 ### 🌐 The Only Official Repository: **[shengmingboai/cc-switch](https://github.com/shengmingboai/cc-switch)**
 
-English | [中文](README_ZH.md) | [Changelog](CHANGELOG.md)
+English | [中文](README_ZH.md)
 
 </div>
 
@@ -31,15 +31,7 @@ Modern AI-powered coding relies on tools like Claude Code, Claude Desktop, Codex
 - **Cross-Platform** — Native desktop app for Windows, macOS, and Linux, built with Tauri 2
 - **Built-in Utilities** — Includes various utilities for first-launch login confirmation, signature bypass, plugin extension sync, and more
 
-## Screenshots
-
-|                  Main Interface                   |                  Add Provider                  |
-| :-----------------------------------------------: | :--------------------------------------------: |
-| ![Main Interface](assets/screenshots/main-en.png) | ![Add Provider](assets/screenshots/add-en.png) |
-
 ## Features
-
-[Full Changelog](CHANGELOG.md)
 
 ### Provider Management
 
@@ -138,10 +130,6 @@ CC_SWITCH_GDK_BACKEND=wayland ./CC-Switch-*.AppImage
 If you launch from a desktop icon, add it to the `.desktop` `Exec=` line (e.g. `env CC_SWITCH_GDK_BACKEND=wayland /path/to/AppImage`) or set it in your session environment. The variable is generic: on tiling Wayland compositors (sway/Hyprland) where clicks don't register, try `CC_SWITCH_GDK_BACKEND=x11` instead. Leaving it unset keeps the default behavior.
 
 </details>
-
-## Documentation
-
-For detailed release history, check out the **[Full Changelog](CHANGELOG.md)**.
 
 ## Quick Start
 
@@ -381,8 +369,7 @@ pnpm test:unit --coverage
 │       ├── session_manager/    # Session management
 │       ├── deeplink/           # Deep Link handling
 │       └── mcp/                # MCP sync module
-├── tests/                      # Frontend tests
-└── assets/                     # Screenshots & static resources
+└── tests/                      # Frontend tests
 ```
 
 </details>

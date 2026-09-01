@@ -1,8 +1,4 @@
 {
-  "app": {
-    "title": "CC Switch",
-    "description": "All-in-One Assistant for Claude Code and Codex"
-  },
   "common": {
     "add": "Add",
     "edit": "Edit",
@@ -165,19 +161,12 @@
     "usageSaveFailed": "Failed to save usage query configuration",
     "duplicateLiveIdsLoadFailed": "Failed to read provider identifiers from config, please fix the config and try again"
   },
-  "claudeCode": {
-    "needsRouting": "Needs Routing",
-    "noRoutingSupport": "No Routing Support"
-  },
   "codex": {
     "needsRouting": "Needs Routing",
     "noRoutingSupport": "No Routing Support",
-    "officialRouting": "Official Account Routing",
-    "nativeLogin": "Codex Sign-in",
     "followCodexLogin": "Follow Codex login",
     "followCodexLoginDescription": "The account changes with the current Codex CLI login",
     "openAiAccount": "OpenAI account",
-    "accountNotSelected": "No account selected",
     "chooseAccount": "Choose account",
     "accountStatusUnavailable": "Unable to load account details",
     "boundAccountUnavailable": "The linked account is unavailable",
@@ -1106,25 +1095,6 @@
     "expandContent": "Expand full content",
     "collapseContent": "Collapse"
   },
-  "console": {
-    "providerSwitchReceived": "Received provider switch event:",
-    "setupListenerFailed": "Failed to setup provider switch listener:",
-    "updateProviderFailed": "Update provider failed:",
-    "autoImportFailed": "Auto import default configuration failed:",
-    "openLinkFailed": "Failed to open link:",
-    "getVersionFailed": "Failed to get version info:",
-    "loadSettingsFailed": "Failed to load settings:",
-    "getConfigPathFailed": "Failed to get config path:",
-    "getConfigDirFailed": "Failed to get config directory:",
-    "detectPortableFailed": "Failed to detect portable mode:",
-    "saveSettingsFailed": "Failed to save settings:",
-    "updateFailed": "Update failed:",
-    "checkUpdateFailed": "Check for updates failed:",
-    "openConfigFolderFailed": "Failed to open config folder:",
-    "selectConfigDirFailed": "Failed to select config directory:",
-    "getDefaultConfigDirFailed": "Failed to get default config directory:",
-    "openReleaseNotesFailed": "Failed to open release notes:"
-  },
   "providerForm": {
     "supplierName": "Provider Name",
     "supplierNameRequired": "Provider Name *",
@@ -1258,13 +1228,11 @@
     "requiredFields": "Please fill in provider name, API endpoint, API Key and model"
   },
   "copilot": {
-    "authSection": "GitHub Copilot Authentication",
     "authStatus": "Authentication Status",
     "authenticated": "Authenticated as {{username}}",
     "notAuthenticated": "Not authenticated",
     "loginWithGitHub": "Login with GitHub",
     "githubAccount": "GitHub account",
-    "manageAccounts": "Manage accounts",
     "loginRequired": "Please login to GitHub Copilot first",
     "statusLoading": "Loading account status...",
     "statusUnavailable": "Status unavailable",
@@ -1272,10 +1240,6 @@
     "waitingForAuth": "Waiting for authorization...",
     "enterCode": "Please enter the code in your browser:",
     "logout": "Logout",
-    "authSuccess": "GitHub Copilot authentication successful",
-    "authFailed": "Authentication failed: {{error}}",
-    "authTimeout": "Authentication timed out, please try again",
-    "tokenExpired": "Token expired, please re-authenticate",
     "accountCount": "{{count}} account(s)",
     "selectAccount": "Select Account",
     "selectAccountPlaceholder": "Select a GitHub account",
@@ -1308,13 +1272,10 @@
     "enterCode": "Enter the code in your browser:",
     "accountCount": "{{count}} account(s)",
     "selectAccount": "Select account",
-    "chatgptAccount": "ChatGPT account",
     "accountToUse": "Account to use",
     "signInMethod": "Sign-in method",
-    "manageAccounts": "Manage accounts",
     "selectAccountPlaceholder": "Choose a ChatGPT account",
     "officialAccountPlaceholder": "Choose a sign-in method",
-    "addOrManageAccounts": "Add or manage ChatGPT accounts…",
     "explicitSelectionRequired": "Choose a sign-in method",
     "useDefaultAccount": "Use default account",
     "noneOptionLabel": "Follow Codex login",
@@ -1872,7 +1833,6 @@
     "title": "Select Configuration Type",
     "custom": "Custom",
     "customDescription": "Manually configure provider, requires complete configuration",
-    "officialDescription": "Official login, no API Key required",
     "presetDescription": "Use preset configuration, only API Key required"
   },
   "mcp": {

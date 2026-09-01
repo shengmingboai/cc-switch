@@ -508,12 +508,6 @@ export interface McpStatus {
   serverCount: number;
 }
 
-// 新：来自 config.json 的 MCP 列表响应
-export interface McpConfigResponse {
-  configPath: string;
-  servers: Record<string, McpServer>;
-}
-
 // ============================================================================
 // OpenCode 专属配置（v3.9.2+）
 // ============================================================================

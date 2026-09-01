@@ -1,8 +1,4 @@
 {
-  "app": {
-    "title": "CC Switch",
-    "description": "Claude Code 和 Codex 全方位辅助工具"
-  },
   "common": {
     "add": "添加",
     "edit": "编辑",
@@ -165,19 +161,12 @@
     "usageSaveFailed": "用量查询配置保存失败",
     "duplicateLiveIdsLoadFailed": "读取配置中的供应商标识失败，请先修复配置后再试"
   },
-  "claudeCode": {
-    "needsRouting": "需要路由",
-    "noRoutingSupport": "不支持路由"
-  },
   "codex": {
     "needsRouting": "需要路由",
     "noRoutingSupport": "不支持路由",
-    "officialRouting": "官方账号路由",
-    "nativeLogin": "Codex 登录",
     "followCodexLogin": "跟随 Codex 登录",
     "followCodexLoginDescription": "账号会随 Codex CLI 当前登录变化",
     "openAiAccount": "OpenAI 账号",
-    "accountNotSelected": "尚未选择账号",
     "chooseAccount": "选择账号",
     "accountStatusUnavailable": "无法读取账号信息",
     "boundAccountUnavailable": "绑定的账号不可用",
@@ -1106,25 +1095,6 @@
     "expandContent": "展开完整内容",
     "collapseContent": "收起"
   },
-  "console": {
-    "providerSwitchReceived": "收到供应商切换事件:",
-    "setupListenerFailed": "设置供应商切换监听器失败:",
-    "updateProviderFailed": "更新供应商失败:",
-    "autoImportFailed": "自动导入默认配置失败:",
-    "openLinkFailed": "打开链接失败:",
-    "getVersionFailed": "获取版本信息失败:",
-    "loadSettingsFailed": "加载设置失败:",
-    "getConfigPathFailed": "获取配置路径失败:",
-    "getConfigDirFailed": "获取配置目录失败:",
-    "detectPortableFailed": "检测便携模式失败:",
-    "saveSettingsFailed": "保存设置失败:",
-    "updateFailed": "更新失败:",
-    "checkUpdateFailed": "检查更新失败:",
-    "openConfigFolderFailed": "打开配置文件夹失败:",
-    "selectConfigDirFailed": "选择配置目录失败:",
-    "getDefaultConfigDirFailed": "获取默认配置目录失败:",
-    "openReleaseNotesFailed": "打开更新日志失败:"
-  },
   "providerForm": {
     "supplierName": "供应商名称",
     "supplierNameRequired": "供应商名称 *",
@@ -1258,13 +1228,11 @@
     "requiredFields": "请填写供应商名称、API 地址、API Key 和模型"
   },
   "copilot": {
-    "authSection": "GitHub Copilot 认证",
     "authStatus": "认证状态",
     "authenticated": "已认证: {{username}}",
     "notAuthenticated": "未认证",
     "loginWithGitHub": "使用 GitHub 登录",
     "githubAccount": "GitHub 账号",
-    "manageAccounts": "管理账号",
     "loginRequired": "请先登录 GitHub Copilot",
     "statusLoading": "正在加载账号状态...",
     "statusUnavailable": "状态不可用",
@@ -1272,10 +1240,6 @@
     "waitingForAuth": "等待授权中...",
     "enterCode": "请在浏览器中输入验证码：",
     "logout": "注销",
-    "authSuccess": "GitHub Copilot 认证成功",
-    "authFailed": "认证失败: {{error}}",
-    "authTimeout": "认证超时，请重试",
-    "tokenExpired": "令牌已过期，请重新认证",
     "accountCount": "{{count}} 个账号",
     "selectAccount": "选择账号",
     "selectAccountPlaceholder": "选择一个 GitHub 账号",
@@ -1308,13 +1272,10 @@
     "enterCode": "请在浏览器中输入以下验证码：",
     "accountCount": "{{count}} 个账号",
     "selectAccount": "选择账号",
-    "chatgptAccount": "ChatGPT 账号",
     "accountToUse": "使用的账号",
     "signInMethod": "登录方式",
-    "manageAccounts": "管理账号",
     "selectAccountPlaceholder": "选择一个 ChatGPT 账号",
     "officialAccountPlaceholder": "请选择登录方式",
-    "addOrManageAccounts": "添加或管理 ChatGPT 账号…",
     "explicitSelectionRequired": "请先选择登录方式",
     "useDefaultAccount": "使用默认账号",
     "noneOptionLabel": "跟随 Codex 登录",
@@ -1872,7 +1833,6 @@
     "title": "选择配置类型",
     "custom": "自定义",
     "customDescription": "手动配置供应商，需要填写完整的配置信息",
-    "officialDescription": "官方登录，不需要填写 API Key",
     "presetDescription": "使用预设配置，只需填写 API Key"
   },
   "mcp": {

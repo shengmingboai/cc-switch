@@ -9,6 +9,7 @@ release/
 .npmrc
 CLAUDE.md
 AGENTS.md
+PROJECT_STRUCTURE.md
 /.claude
 /.codex
 /.cc-switch

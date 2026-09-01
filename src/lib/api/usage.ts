@@ -5,7 +5,6 @@ import type {
   DailyStats,
   ProviderStats,
   ModelStats,
-  RequestLog,
   LogFilters,
   ModelPricing,
   ModelsDevSyncConfig,
@@ -138,10 +137,6 @@ export const usageApi = {
       page,
       pageSize,
     });
-  },
-
-  getRequestDetail: async (requestId: string): Promise<RequestLog | null> => {
-    return invoke("get_request_detail", { requestId });
   },
 
   getModelPricing: async (): Promise<ModelPricing[]> => {

@@ -140,8 +140,6 @@ export const usageKeys = {
       page,
       pageSize,
     ] as const,
-  detail: (requestId: string) =>
-    [...usageKeys.all, "detail", requestId] as const,
   pricing: () => [...usageKeys.all, "pricing"] as const,
   limits: (providerId: string, appType: string) =>
     [...usageKeys.all, "limits", providerId, appType] as const,
@@ -328,14 +326,6 @@ export function useRequestLogs({
     },
     refetchInterval: options?.refetchInterval ?? DEFAULT_REFETCH_INTERVAL_MS, // 每30秒自动刷新
     refetchIntervalInBackground: options?.refetchIntervalInBackground ?? false,
-  });
-}
-
-export function useRequestDetail(requestId: string) {
-  return useQuery({
-    queryKey: usageKeys.detail(requestId),
-    queryFn: () => usageApi.getRequestDetail(requestId),
-    enabled: !!requestId,
   });
 }
 

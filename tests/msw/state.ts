@@ -1,6 +1,5 @@
 import type { AppId } from "@/lib/api/types";
 import type {
-  McpServer,
   Provider,
   SessionMessage,
   SessionMeta,
@@ -10,7 +9,6 @@ import { deepClone } from "@/utils/deepClone";
 
 type ProvidersByApp = Record<AppId, Record<string, Provider>>;
 type CurrentProviderState = Record<AppId, string>;
-type McpConfigState = Record<AppId, Record<string, McpServer>>;
 type LiveProviderIdsByApp = Record<"opencode", string[]>;
 
 const createDefaultProviders = (): ProvidersByApp => ({
@@ -129,45 +127,6 @@ const createDefaultSessionMessages = (): Record<string, SessionMessage[]> => ({
 
 let sessionsState = createDefaultSessions();
 let sessionMessagesState = createDefaultSessionMessages();
-let mcpConfigs: McpConfigState = {
-  claude: {
-    sample: {
-      id: "sample",
-      name: "Sample Claude Server",
-      enabled: true,
-      apps: {
-        claude: true,
-        codex: false,
-        opencode: false,
-      },
-      server: {
-        type: "stdio",
-        command: "claude-server",
-      },
-    },
-  },
-  "claude-desktop": {},
-  codex: {
-    httpServer: {
-      id: "httpServer",
-      name: "HTTP Codex Server",
-      enabled: false,
-      apps: {
-        claude: false,
-        codex: true,
-        opencode: false,
-      },
-      server: {
-        type: "http",
-        url: "http://localhost:3000",
-      },
-    },
-  },
-  grokbuild: {},
-  opencode: {},
-  pi: {},
-};
-
 const cloneProviders = (value: ProvidersByApp) =>
   deepClone(value) as ProvidersByApp;
 
@@ -188,44 +147,6 @@ export const resetProviderState = () => {
     language: "zh",
   };
   appConfigDirOverride = "/mock/cc-switch/data";
-  mcpConfigs = {
-    claude: {
-      sample: {
-        id: "sample",
-        name: "Sample Claude Server",
-        enabled: true,
-        apps: {
-          claude: true,
-          codex: false,
-          opencode: false,
-        },
-        server: {
-          type: "stdio",
-          command: "claude-server",
-        },
-      },
-    },
-    "claude-desktop": {},
-    codex: {
-      httpServer: {
-        id: "httpServer",
-        name: "HTTP Codex Server",
-        enabled: false,
-        apps: {
-          claude: false,
-          codex: true,
-          opencode: false,
-        },
-        server: {
-          type: "http",
-          url: "http://localhost:3000",
-        },
-      },
-    },
-    grokbuild: {},
-    opencode: {},
-    pi: {},
-  };
 };
 
 export const getProviders = (appType: AppId) =>
@@ -312,52 +233,6 @@ export const getAppConfigDirOverride = () => appConfigDirOverride;
 
 export const setAppConfigDirOverrideState = (value: string | null) => {
   appConfigDirOverride = value;
-};
-
-export const getMcpConfig = (appType: AppId) => {
-  const servers = deepClone(mcpConfigs[appType] ?? {}) as Record<
-    string,
-    McpServer
-  >;
-  return {
-    configPath: `/mock/${appType}.mcp.json`,
-    servers,
-  };
-};
-
-export const setMcpConfig = (
-  appType: AppId,
-  value: Record<string, McpServer>,
-) => {
-  mcpConfigs[appType] = deepClone(value) as Record<string, McpServer>;
-};
-
-export const setMcpServerEnabled = (
-  appType: AppId,
-  id: string,
-  enabled: boolean,
-) => {
-  if (!mcpConfigs[appType]?.[id]) return;
-  mcpConfigs[appType][id] = {
-    ...mcpConfigs[appType][id],
-    enabled,
-  };
-};
-
-export const upsertMcpServer = (
-  appType: AppId,
-  id: string,
-  server: McpServer,
-) => {
-  if (!mcpConfigs[appType]) {
-    mcpConfigs[appType] = {};
-  }
-  mcpConfigs[appType][id] = deepClone(server) as McpServer;
-};
-
-export const deleteMcpServer = (appType: AppId, id: string) => {
-  if (!mcpConfigs[appType]) return;
-  delete mcpConfigs[appType][id];
 };
 
 export const listSessions = () => deepClone(sessionsState) as SessionMeta[];

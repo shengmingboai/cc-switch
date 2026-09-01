@@ -11,7 +11,7 @@
 
 ### 🌐 唯一官方仓库：**[shengmingboai/cc-switch](https://github.com/shengmingboai/cc-switch)**
 
-[English](README.md) | 中文 | [更新日志](CHANGELOG.md)
+[English](README.md) | 中文
 
 </div>
 
@@ -29,15 +29,7 @@
 - **跨平台** — 基于 Tauri 2 构建的原生桌面应用，支持 Windows、macOS 和 Linux
 - **小工具** - 内置了多种小工具来解决首次安装登录确认、禁止签名、插件拓展同步等多种功能
 
-## 界面预览
-
-|                  主界面                   |                  添加供应商                  |
-| :---------------------------------------: | :------------------------------------------: |
-| ![主界面](assets/screenshots/main-zh.png) | ![添加供应商](assets/screenshots/add-zh.png) |
-
 ## 功能特性
-
-[完整更新日志](CHANGELOG.md)
 
 ### 供应商管理
 
@@ -138,10 +130,6 @@ CC_SWITCH_GDK_BACKEND=wayland ./CC-Switch-*.AppImage
 如果你是从桌面图标启动的，请把它写进 `.desktop` 的 `Exec=` 行（如 `env CC_SWITCH_GDK_BACKEND=wayland /path/to/AppImage`），或在会话环境中设置。该变量是通用的：在 tiling Wayland 合成器（sway/Hyprland）下若出现点击失效，可反过来设 `CC_SWITCH_GDK_BACKEND=x11`。不设置则保持默认行为。
 
 </details>
-
-## 文档
-
-如需了解版本变更详情，请查阅 **[完整更新日志](CHANGELOG.md)**。
 
 ## 快速开始
 
@@ -381,8 +369,7 @@ pnpm test:unit --coverage
 │       ├── session_manager/    # 会话管理
 │       ├── deeplink/           # Deep Link 处理
 │       └── mcp/                # MCP 同步模块
-├── tests/                      # 前端测试
-└── assets/                     # 截图 & 静态资源
+└── tests/                      # 前端测试
 ```
 
 </details>

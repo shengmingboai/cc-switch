@@ -1233,7 +1233,9 @@ function App() {
                   style={{ WebkitAppRegion: "no-drag" } as any}
                 >
                   {activeApp === "claude-desktop" ? (
-                    <ClaudeDesktopRouteToggle />
+                    settingsData?.enableLocalProxy && (
+                      <ClaudeDesktopRouteToggle />
+                    )
                   ) : proxyAppId ? (
                     <>
                       {settingsData?.enableLocalProxy && (

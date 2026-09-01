@@ -5,7 +5,6 @@ frontend:
   - changed-files:
       - any-glob-to-any-file:
           - "src/**"
-          - "index.html"
           - "vite.config.ts"
           - "vitest.config.ts"
           - "tailwind.config.cjs"
@@ -43,7 +42,6 @@ documentation:
   - changed-files:
       - any-glob-to-any-file:
           - "*.md"
-          - "docs/**"
           - "LICENSE"
 
 mcp:
