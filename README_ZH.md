@@ -43,7 +43,7 @@
 
 ### MCP、Prompts 与 Skills
 
-- **统一 MCP 面板** — 管理 Claude、Codex、Grok Build 和 OpenCode 的 MCP 服务器，双向同步，支持 Deep Link 导入
+- **统一 MCP 面板** — 管理 Claude、Codex、Grok Build 和 OpenCode 的 MCP 服务器，双向同步
 - **Prompts** — Markdown 编辑器，跨应用同步（CLAUDE.md / AGENTS.md），回填保护
 - **Skills** — 从 GitHub 仓库或 ZIP 文件一键安装，自定义仓库管理，支持软连接和文件复制
 
@@ -58,7 +58,6 @@
 ### 系统与平台
 
 - **云同步** — 自定义配置目录（Dropbox、OneDrive、iCloud、坚果云、NAS）及 WebDAV 服务器同步
-- **Deep Link** (`ccswitch://`) — 通过 URL 一键导入供应商、MCP 服务器、提示词和技能
 - 深色 / 浅色 / 跟随系统主题、开机自启、自动更新、原子写入、自动备份、国际化（简中/繁中/英/日）
 
 ## 常见问题
@@ -349,7 +348,6 @@ pnpm test:unit --coverage
 │   │   ├── sessions/           # 会话管理器
 │   │   ├── proxy/              # Proxy 模式面板
 │   │   ├── settings/           # 设置（终端/备份/关于）
-│   │   ├── deeplink/           # Deep Link 导入
 │   │   ├── env/                # 环境变量管理
 │   │   ├── usage/              # 用量统计
 │   │   └── ui/                 # shadcn/ui 组件库
@@ -367,7 +365,6 @@ pnpm test:unit --coverage
 │       ├── database/           # SQLite DAO 层
 │       ├── proxy/              # Proxy 模块
 │       ├── session_manager/    # 会话管理
-│       ├── deeplink/           # Deep Link 处理
 │       └── mcp/                # MCP 同步模块
 └── tests/                      # 前端测试
 ```

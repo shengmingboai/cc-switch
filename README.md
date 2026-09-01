@@ -45,7 +45,7 @@ Modern AI-powered coding relies on tools like Claude Code, Claude Desktop, Codex
 
 ### MCP, Prompts & Skills
 
-- **Unified MCP panel** — Manage MCP servers across Claude, Codex, Grok Build, and OpenCode with bidirectional sync and Deep Link import
+- **Unified MCP panel** — Manage MCP servers across Claude, Codex, Grok Build, and OpenCode with bidirectional sync
 - **Prompts** — Markdown editor with cross-app sync (CLAUDE.md / AGENTS.md) and backfill protection
 - **Skills** — One-click install from GitHub repos or ZIP files, custom repository management, with symlink and file copy support
 
@@ -60,7 +60,6 @@ Modern AI-powered coding relies on tools like Claude Code, Claude Desktop, Codex
 ### System & Platform
 
 - **Cloud sync** — Custom config directory (Dropbox, OneDrive, iCloud, NAS) and WebDAV server sync
-- **Deep Link** (`ccswitch://`) — Import providers, MCP servers, prompts, and skills via URL
 - Dark / Light / System theme, auto-launch, auto-updater, atomic writes, auto-backups, i18n (zh/en)
 
 ## FAQ
@@ -349,7 +348,6 @@ pnpm test:unit --coverage
 │   │   ├── sessions/           # Session Manager
 │   │   ├── proxy/              # Proxy mode panel
 │   │   ├── settings/           # Settings (Terminal/Backup/About)
-│   │   ├── deeplink/           # Deep Link import
 │   │   ├── env/                # Environment variable management
 │   │   ├── usage/              # Usage statistics
 │   │   └── ui/                 # shadcn/ui component library
@@ -367,7 +365,6 @@ pnpm test:unit --coverage
 │       ├── database/           # SQLite DAO layer
 │       ├── proxy/              # Proxy module
 │       ├── session_manager/    # Session management
-│       ├── deeplink/           # Deep Link handling
 │       └── mcp/                # MCP sync module
 └── tests/                      # Frontend tests
 ```

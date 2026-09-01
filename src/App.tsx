@@ -79,7 +79,6 @@ import {
 import UnifiedSkillsPanel, {
   type SkillsCheckUpdatesState,
 } from "@/components/skills/UnifiedSkillsPanel";
-import { DeepLinkImportDialog } from "@/components/DeepLinkImportDialog";
 import { FirstRunNoticeDialog } from "@/components/FirstRunNoticeDialog";
 import { AgentsPanel } from "@/components/agents/AgentsPanel";
 import { McpIcon } from "@/components/BrandIcons";
@@ -1547,7 +1546,6 @@ function App() {
         onCancel={() => setConfirmAction(null)}
       />
 
-      <DeepLinkImportDialog />
       <FirstRunNoticeDialog />
     </div>
   );

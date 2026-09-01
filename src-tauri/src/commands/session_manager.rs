@@ -35,8 +35,8 @@ pub async fn get_session_messages(
 /// 核实过（2026-07）：
 ///
 /// 1. 全库仅一处 `dangerouslySetInnerHTML`（`ProviderIcon.tsx`），其入参是图标
-///    **名字**，经 `hasIcon()` 把关后从手工维护的构建期注册表取 SVG——用户与
-///    深链接都只能给名字，给不了标记内容
+///    **名字**，经 `hasIcon()` 把关后从手工维护的构建期注册表取 SVG——用户导入
+///    都只能给名字，给不了标记内容
 /// 2. 前端无 `eval` / `new Function`
 /// 3. `tauri.conf.json` 的 `frontendDist` 指向打包产物，webview 不加载任何远程
 ///    源；界面里也没有 `<iframe>` / `<webview>`

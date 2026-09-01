@@ -30,7 +30,7 @@ pub async fn execute_usage_script(
     }
 
     // 3. 在独立作用域中提取 request 配置（确保 Runtime/Context 在 await 前释放）
-    // 用量脚本允许的最长执行时间（秒）。脚本来自不可信来源（deeplink、同步导入），
+    // 用量脚本允许的最长执行时间（秒）。脚本来自不可信来源（同步导入），
     // 必须限制其 CPU / 内存 / 栈占用，防止一个恶意/ buggy 脚本挂死整个后端。
     const USAGE_SCRIPT_TIMEOUT_SECS: u64 = 5;
     // 16 MiB 对仅构造 request 配置 / extractor 的脚本已经足够。
@@ -690,7 +690,7 @@ mod tests {
 
     #[test]
     fn infinite_loop_usage_script_is_interrupted_before_blocking_the_backend() {
-        // 用量脚本来自不可信输入（deeplink / 同步导入的 DB 行），必须限制 CPU 时间，
+        // 用量脚本来自不可信输入（同步导入的 DB 行），必须限制 CPU 时间，
         // 否则 `while(true)` 会挂死执行线程（DoS）。
         let script = r#"
             (function(){
