@@ -12,11 +12,7 @@ import {
   buildLocalProxyRequestOverrides,
   formatRequestOverrideObject,
 } from "@/lib/requestOverrides";
-import {
-  providersApi,
-  settingsApi,
-  type AppId,
-} from "@/lib/api";
+import { providersApi, settingsApi, type AppId } from "@/lib/api";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import type {
   ProviderCategory,
@@ -41,7 +37,6 @@ import {
   type OpenCodeProviderPreset,
 } from "@/config/opencodeProviderPresets";
 import { OpenCodeFormFields } from "./OpenCodeFormFields";
-import type { UniversalProviderPreset } from "@/config/universalProviderPresets";
 import {
   applyTemplateValues,
   hasApiKeyField,
@@ -105,10 +100,7 @@ import { resolveCodexOfficialIdentity } from "@/utils/providerCapabilities";
 
 type PresetEntry = {
   id: string;
-  preset:
-    | ProviderPreset
-    | CodexProviderPreset
-    | OpenCodeProviderPreset
+  preset: ProviderPreset | CodexProviderPreset | OpenCodeProviderPreset;
 };
 
 function getPresetProviderType(
@@ -222,8 +214,6 @@ export interface ProviderFormProps {
   submitLabel: string;
   onSubmit: (values: ProviderFormValues) => Promise<void> | void;
   onCancel: () => void;
-  onUniversalPresetSelect?: (preset: UniversalProviderPreset) => void;
-  onManageUniversalProviders?: () => void;
   onSubmittingChange?: (isSubmitting: boolean) => void;
   onSubmitReadyChange?: (isReady: boolean) => void;
   initialData?: {
@@ -260,8 +250,6 @@ function ProviderFormFull({
   submitLabel,
   onSubmit,
   onCancel,
-  onUniversalPresetSelect,
-  onManageUniversalProviders,
   onSubmittingChange,
   initialData,
   showButtons = true,
@@ -343,13 +331,18 @@ function ProviderFormFull({
     ),
   }));
 
+  const initialCategory =
+    appId === "codex" &&
+    initialData?.category === "official" &&
+    !hasExistingCodexOfficialIdentity
+      ? "custom"
+      : (initialData?.category ??
+        (hasExistingCodexOfficialIdentity ? "official" : undefined));
   const { category } = useProviderCategory({
     appId,
     selectedPresetId,
     isEditMode,
-    initialCategory:
-      initialData?.category ??
-      (hasExistingCodexOfficialIdentity ? "official" : undefined),
+    initialCategory,
   });
   const isOmoCategory = appId === "opencode" && category === "omo";
   const isOmoSlimCategory = appId === "opencode" && category === "omo-slim";
@@ -877,12 +870,7 @@ function ProviderFormFull({
       return isOpencodeLiveProviderIdsLoading;
     }
     return false;
-  }, [
-    appId,
-    isAnyOmoCategory,
-    isEditMode,
-    isOpencodeLiveProviderIdsLoading,
-  ]);
+  }, [appId, isAnyOmoCategory, isEditMode, isOpencodeLiveProviderIdsLoading]);
 
   const isProviderKeyLocked = useMemo(() => {
     if (!isEditMode || !providerId) return false;
@@ -1659,7 +1647,6 @@ function ProviderFormFull({
       return;
     }
 
-
     const preset = entry.preset as ProviderPreset;
     const config = applyTemplateValues(
       preset.settingsConfig,
@@ -1710,8 +1697,6 @@ function ProviderFormFull({
               presetEntries={presetEntries}
               presetCategoryLabels={presetCategoryLabels}
               onPresetChange={handlePresetChange}
-              onUniversalPresetSelect={onUniversalPresetSelect}
-              onManageUniversalProviders={onManageUniversalProviders}
               category={category}
             />
           )}
@@ -2062,13 +2047,12 @@ function ProviderFormFull({
             </>
           )}
 
-          {!isAnyOmoCategory &&
-            appId !== "opencode" && (
-              <ProviderAdvancedConfig
-                pricingConfig={pricingConfig}
-                onPricingConfigChange={setPricingConfig}
-              />
-            )}
+          {!isAnyOmoCategory && appId !== "opencode" && (
+            <ProviderAdvancedConfig
+              pricingConfig={pricingConfig}
+              onPricingConfigChange={setPricingConfig}
+            />
+          )}
 
           {showButtons && (
             <div className="flex justify-end gap-2">

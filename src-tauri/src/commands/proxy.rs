@@ -294,7 +294,7 @@ pub async fn switch_proxy_provider(
         .get_provider_by_id(&provider_id, &app_type)
         .map_err(|e| format!("读取供应商失败: {e}"))?
         .ok_or_else(|| format!("供应商不存在: {provider_id}"))?;
-    if provider.category.as_deref() == Some("official")
+    if crate::services::provider::is_official_provider_for_app(&app, &provider)
         && !crate::services::provider::official_provider_supports_proxy_takeover(&app, &provider)
     {
         return Err(

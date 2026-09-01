@@ -2,16 +2,8 @@ import { useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import {
-  piApi,
-  providersApi,
-  settingsApi,
-  type AppId,
-} from "@/lib/api";
-import type {
-  Provider,
-  UsageScript,
-} from "@/types";
+import { piApi, providersApi, settingsApi, type AppId } from "@/lib/api";
+import type { Provider, UsageScript } from "@/types";
 import { injectCodingPlanUsageScript } from "@/config/codingPlanProviders";
 import {
   useAddProviderMutation,
@@ -28,6 +20,7 @@ import {
 } from "@/utils/providerConfigUtils";
 import {
   providerNeedsRouting,
+  resolveCodexOfficialIdentity,
   supportsOfficialProxyTakeover,
 } from "@/utils/providerCapabilities";
 import { isOAuthProviderType } from "@/config/constants";
@@ -88,7 +81,6 @@ export function useProviderActions(
     ) => {
       const enhanced = injectCodingPlanUsageScript(activeApp, provider);
       await addProviderMutation.mutateAsync(enhanced);
-
     },
     [addProviderMutation, activeApp, queryClient, t],
   );
@@ -228,11 +220,11 @@ export function useProviderActions(
         activeApp,
         provider,
       );
-      if (
-        isProxyTakeover &&
-        provider.category === "official" &&
-        !officialSupportsTakeover
-      ) {
+      const isOfficialProvider =
+        activeApp === "codex"
+          ? resolveCodexOfficialIdentity(activeApp, provider) !== null
+          : provider.category === "official";
+      if (isProxyTakeover && isOfficialProvider && !officialSupportsTakeover) {
         toast.error(
           t("notifications.officialBlockedByProxy", {
             defaultValue:

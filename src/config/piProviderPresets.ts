@@ -131,25 +131,6 @@ const piProviderPresetDefinitions: PiProviderPreset[] = [
     iconColor: "#6366F1",
   },
   {
-    name: "Amux",
-    providerKey: "cc-switch-amux",
-    websiteUrl: "https://amux.ai",
-    apiKeyUrl: "https://amux.ai",
-    settingsConfig: {
-      name: "Amux",
-      baseUrl: "https://api.amux.ai/v1",
-      api: "openai-completions",
-      apiKey: "",
-      models: [
-        piModel("openai/gpt-5.6-sol", {
-          id: "gpt-5.6-sol",
-        }),
-      ],
-    },
-    category: "aggregator",
-    icon: "amux",
-  },
-  {
     name: "DeepSeek",
     providerKey: "cc-switch-deep-seek",
     websiteUrl: "https://platform.deepseek.com",
@@ -275,23 +256,6 @@ const piProviderPresetDefinitions: PiProviderPreset[] = [
     iconColor: "#FF6B6B",
   },
   {
-    name: "BaiLing",
-    providerKey: "cc-switch-bai-ling",
-    websiteUrl: "https://alipaytbox.yuque.com/sxs0ba/ling/get_started",
-    settingsConfig: {
-      name: "BaiLing",
-      baseUrl: "https://api.tbox.cn/v1",
-      api: "openai-completions",
-      apiKey: "",
-      models: [
-        piModel("inclusionai/ling-2.5-1t", {
-          id: "Ling-2.5-1T",
-        }),
-      ],
-    },
-    category: "cn_official",
-  },
-  {
     name: "Xiaomi MiMo",
     providerKey: "cc-switch-xiaomi-mi-mo",
     websiteUrl: "https://platform.xiaomimimo.com",
@@ -393,29 +357,6 @@ const piProviderPresetDefinitions: PiProviderPreset[] = [
     category: "third_party",
     icon: "opencode",
     iconColor: "#211E1E",
-  },
-  {
-    name: "AiHubMix",
-    providerKey: "cc-switch-ai-hub-mix",
-    websiteUrl: "https://aihubmix.com",
-    apiKeyUrl: "https://aihubmix.com",
-    settingsConfig: {
-      name: "AiHubMix",
-      baseUrl: "https://aihubmix.com",
-      api: "anthropic-messages",
-      apiKey: "",
-      models: [
-        piModel("anthropic/claude-sonnet-5", {
-          id: "claude-sonnet-5",
-        }),
-        piModel("anthropic/claude-opus-5", {
-          id: "claude-opus-5",
-        }),
-      ],
-    },
-    category: "aggregator",
-    icon: "aihubmix",
-    iconColor: "#006FFB",
   },
   {
     name: "OpenRouter",

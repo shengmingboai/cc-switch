@@ -175,18 +175,6 @@ export const claudeDesktopProviderPresets: ClaudeDesktopProviderPreset[] = [
     icon: "kimi",
     iconColor: "#6366F1",
   },
-  // ===== 内置预设：应用内展示按显示名排序，此处文件顺序不影响展示 =====
-  {
-    name: "Amux",
-    websiteUrl: "https://amux.ai",
-    apiKeyUrl: "https://amux.ai",
-    category: "aggregator",
-    baseUrl: "https://api.amux.ai",
-    mode: "direct",
-    apiFormat: "anthropic",
-    modelRoutes: passthroughRoutes(),
-    icon: "amux",
-  },
   {
     name: "GitHub Copilot",
     websiteUrl: "https://github.com/features/copilot",
@@ -289,46 +277,6 @@ export const claudeDesktopProviderPresets: ClaudeDesktopProviderPreset[] = [
     iconColor: "#0F62FE",
   },
   {
-    name: "Baidu Qianfan Coding Plan",
-    websiteUrl: "https://cloud.baidu.com/product/qianfan_modelbuilder",
-    apiKeyUrl:
-      "https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application",
-    category: "cn_official",
-    baseUrl: "https://qianfan.baidubce.com/anthropic/coding",
-    mode: "proxy",
-    apiFormat: "anthropic",
-    modelRoutes: brandedRoutes(
-      "qianfan-code-latest",
-      "qianfan-code-latest",
-      "qianfan-code-latest",
-    ),
-    endpointCandidates: ["https://qianfan.baidubce.com/anthropic/coding"],
-    icon: "baidu",
-    iconColor: "#2932E1",
-  },
-  {
-    // Token Plan 个人版：2026-07-13 起替代 Coding Plan 发售（存量 Coding
-    // Plan 可用至到期，旧预设保留）。模型=官方 Claude Code 接入页
-    // （2026-07-30 版）全角色 deepseek-v4-pro
-    name: "Baidu Qianfan Token Plan",
-    websiteUrl: "https://cloud.baidu.com/product/codingplan.html",
-    apiKeyUrl: "https://console.bce.baidu.com/qianfan/resource/token-plan",
-    category: "cn_official",
-    baseUrl: "https://qianfan.baidubce.com/anthropic/tokenplan/personal",
-    mode: "proxy",
-    apiFormat: "anthropic",
-    modelRoutes: brandedRoutes(
-      "deepseek-v4-pro",
-      "deepseek-v4-pro",
-      "deepseek-v4-pro",
-    ),
-    endpointCandidates: [
-      "https://qianfan.baidubce.com/anthropic/tokenplan/personal",
-    ],
-    icon: "baidu",
-    iconColor: "#2932E1",
-  },
-  {
     name: "Bailian",
     websiteUrl: "https://bailian.console.aliyun.com",
     category: "cn_official",
@@ -373,29 +321,6 @@ export const claudeDesktopProviderPresets: ClaudeDesktopProviderPreset[] = [
     modelRoutes: brandedRoutes("MiniMax-M2.7", "MiniMax-M2.7", "MiniMax-M2.7"),
     icon: "minimax",
     iconColor: "#FF6B6B",
-  },
-  {
-    name: "BaiLing",
-    websiteUrl: "https://alipaytbox.yuque.com/sxs0ba/ling/get_started",
-    category: "cn_official",
-    baseUrl: "https://api.tbox.cn/api/anthropic",
-    mode: "proxy",
-    apiFormat: "anthropic",
-    modelRoutes: brandedRoutes("Ling-2.5-1T", "Ling-2.5-1T", "Ling-2.5-1T"),
-  },
-  {
-    name: "AiHubMix",
-    websiteUrl: "https://aihubmix.com",
-    apiKeyUrl: "https://aihubmix.com",
-    category: "aggregator",
-    baseUrl: "https://aihubmix.com",
-    apiKeyField: "ANTHROPIC_API_KEY",
-    mode: "direct",
-    apiFormat: "anthropic",
-    modelRoutes: passthroughRoutes(),
-    endpointCandidates: ["https://aihubmix.com", "https://api.aihubmix.com"],
-    icon: "aihubmix",
-    iconColor: "#006FFB",
   },
   {
     name: "OpenRouter",

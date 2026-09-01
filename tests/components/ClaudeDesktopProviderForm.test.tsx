@@ -128,12 +128,30 @@ describe("ClaudeDesktopProviderForm", () => {
     expect(screen.queryByText("模型角色")).not.toBeInTheDocument();
   });
 
-  it("直连预设保留预设模型列表", async () => {
+  it("直连模式保留自定义模型列表", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
-    renderForm(undefined, onSubmit);
-
-    await user.click(screen.getByRole("button", { name: /AiHubMix/ }));
+    renderForm(
+      {
+        name: "Direct Relay",
+        category: "third_party",
+        settingsConfig: {
+          env: {
+            ANTHROPIC_BASE_URL: "https://relay.example",
+            ANTHROPIC_AUTH_TOKEN: "",
+          },
+        },
+        meta: {
+          claudeDesktopMode: "direct",
+          claudeDesktopModelRoutes: {
+            "claude-sonnet-5": { model: "" },
+            "claude-opus-5": { model: "" },
+            "claude-haiku-4-5": { model: "" },
+          },
+        },
+      },
+      onSubmit,
+    );
 
     expect(screen.getByDisplayValue("claude-sonnet-5")).toBeInTheDocument();
     expect(screen.getByDisplayValue("claude-opus-5")).toBeInTheDocument();

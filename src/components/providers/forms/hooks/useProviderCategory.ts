@@ -42,9 +42,7 @@ export function useProviderCategory({
     if (!selectedPresetId) return;
 
     // 从预设 ID 提取索引
-    const match = selectedPresetId.match(
-      /^(claude|codex|opencode)-(\d+)$/,
-    );
+    const match = selectedPresetId.match(/^(claude|codex|opencode)-(\d+)$/);
     if (!match) return;
 
     const [, type, indexStr] = match;

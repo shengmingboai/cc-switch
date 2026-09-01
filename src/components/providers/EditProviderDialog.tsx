@@ -8,11 +8,7 @@ import {
   ProviderForm,
   type ProviderFormValues,
 } from "@/components/providers/forms/ProviderForm";
-import {
-  providersApi,
-  vscodeApi,
-  type AppId,
-} from "@/lib/api";
+import { providersApi, vscodeApi, type AppId } from "@/lib/api";
 import { extractCodexExperimentalBearerToken } from "@/utils/providerConfigUtils";
 
 interface EditProviderDialogProps {
@@ -266,8 +262,7 @@ export function EditProviderDialog({
         unknown
       >;
       const nextProviderId =
-        (appId === "opencode" || appId === "pi") &&
-        values.providerKey?.trim()
+        (appId === "opencode" || appId === "pi") && values.providerKey?.trim()
           ? values.providerKey.trim()
           : provider.id;
 

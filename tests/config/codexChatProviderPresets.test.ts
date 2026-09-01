@@ -26,27 +26,6 @@ const expectedChatPresets = new Map<
     },
   ],
   [
-    "Baidu Qianfan Coding Plan",
-    {
-      baseUrl: "https://qianfan.baidubce.com/v2/coding",
-      contextWindows: { "qianfan-code-latest": 131072 },
-    },
-  ],
-  [
-    "Baidu Qianfan Token Plan",
-    {
-      baseUrl: "https://qianfan.baidubce.com/v2/tokenplan/personal",
-      contextWindows: {
-        "deepseek-v4-pro": 1048576,
-        "deepseek-v4-flash": 1048576,
-        "deepseek-v4-flash-0731": 1048576,
-        "glm-5.2": 1048576,
-        "glm-5.1": 198000,
-        "kimi-k2.6": 262144,
-      },
-    },
-  ],
-  [
     "Kimi",
     {
       baseUrl: "https://api.moonshot.cn/v1",
@@ -63,13 +42,6 @@ const expectedChatPresets = new Map<
         k3: 1048576,
         "k3-256k": 262144,
       },
-    },
-  ],
-  [
-    "BaiLing",
-    {
-      baseUrl: "https://api.tbox.cn/api/llm/v1",
-      contextWindows: { "Ling-2.6-1T": 262144 },
     },
   ],
   [
@@ -120,11 +92,6 @@ describe("Codex Chat provider presets", () => {
       { contextWindows: Record<string, number> }
     >([
       ["Bailian", { contextWindows: { "qwen3-coder-plus": 1048576 } }],
-      // 腾讯 TokenHub 官方 Codex 文档确认 hy3 原生 Responses（2026-07-14）
-      [
-        "Tencent Hunyuan",
-        { contextWindows: { hy3: 256000, "hy3-preview": 256000 } },
-      ],
       // DeepSeek 官方 Codex 文档确认 deepseek-v4-flash 原生 Responses；
       // catalog 由后端按 deepseek.com host 镜像官方 models.json 生成
       [
@@ -185,7 +152,9 @@ describe("Codex Chat provider presets", () => {
     // Zen 网关的合法 effort 档位是逐模型的（models.dev reasoning_options，
     // 2026-08）：统一并集映射会把 Codex 默认的 medium 发给只声明 high|max 的
     // glm-5.2（默认路径），此测试锁住逐模型表，防回退。
-    const preset = codexProviderPresets.find((item) => item.name === "OpenCode Go");
+    const preset = codexProviderPresets.find(
+      (item) => item.name === "OpenCode Go",
+    );
 
     expect(preset, "OpenCode Go preset").toBeDefined();
     expect(preset?.codexChatReasoning?.effortValueMode).toBe("zen");

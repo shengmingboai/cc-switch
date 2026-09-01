@@ -1,10 +1,7 @@
 import React from "react";
 import type { AppId } from "@/lib/api/types";
 import type { VisibleApps } from "@/types";
-import {
-  ClaudeIcon,
-  CodexIcon,
-} from "@/components/BrandIcons";
+import { ClaudeIcon, CodexIcon } from "@/components/BrandIcons";
 import { ProviderIcon } from "@/components/ProviderIcon";
 
 export interface AppConfig {
@@ -41,31 +38,18 @@ export const SKILLS_APP_IDS: AppId[] = [
   "pi",
 ];
 
-export type ProxyAppId = Extract<
-  AppId,
-  "claude" | "codex" | "grokbuild"
->;
+export type ProxyAppId = Extract<AppId, "claude" | "codex" | "grokbuild">;
 
 /** Apps with a complete local gateway + failover data plane. */
-export const PROXY_APP_IDS: ProxyAppId[] = [
-  "claude",
-  "codex",
-  "grokbuild",
-];
+export const PROXY_APP_IDS: ProxyAppId[] = ["claude", "codex", "grokbuild"];
 
 export function isProxyAppId(appId: string): appId is ProxyAppId {
   return (PROXY_APP_IDS as string[]).includes(appId);
 }
 
-export type AdditiveAppId = Extract<
-  AppId,
-  "opencode" | "pi"
->;
+export type AdditiveAppId = Extract<AppId, "opencode" | "pi">;
 
-export const ADDITIVE_APP_IDS: AdditiveAppId[] = [
-  "opencode",
-  "pi",
-];
+export const ADDITIVE_APP_IDS: AdditiveAppId[] = ["opencode", "pi"];
 
 export function isAdditiveAppId(appId: string): appId is AdditiveAppId {
   return (ADDITIVE_APP_IDS as string[]).includes(appId);

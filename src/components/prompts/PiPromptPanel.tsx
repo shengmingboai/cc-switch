@@ -4,7 +4,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { usePromptActions } from "@/hooks/usePromptActions";
-import { useTauriEvent } from "@/hooks/useTauriEvent";
 import type { Prompt } from "@/lib/api";
 import PromptFormPanel from "./PromptFormPanel";
 import { PromptLibrary } from "./PromptLibrary";
@@ -104,10 +103,6 @@ const PiPromptPanel = React.forwardRef<PiPromptPanelHandle, PiPromptPanelProps>(
       return () =>
         window.removeEventListener("prompt-imported", handlePromptImported);
     }, [reload]);
-
-    useTauriEvent("profile-applied", () => {
-      void reload();
-    });
 
     const openGlobalPromptForm = (id?: string) => {
       setEditingId(id ?? null);

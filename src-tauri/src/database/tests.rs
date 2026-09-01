@@ -229,27 +229,10 @@ fn schema_migration_removes_partner_metadata() {
             "claude",
             "Provider A",
             "{}",
-            r#"{"isPartner":true,"partnerPromotionKey":"legacy","usage_script":{"enabled":false}}"#,
+            r#"{"isPartner":true,"partnerPromotionKey":"legacy","labels":[{"isPartner":true},{"isPartner":true}],"usage_script":{"enabled":false}}"#,
         ],
     )
     .expect("insert provider");
-    conn.execute(
-        "INSERT INTO profiles (id, name, payload) VALUES (?1, ?2, ?3)",
-        params![
-            "profile-a",
-            "Profile A",
-            r#"{"providers":{"claude":{"meta":{"primePartner":true}}}}"#,
-        ],
-    )
-    .expect("insert profile");
-    conn.execute(
-        "INSERT INTO settings (key, value) VALUES (?1, ?2)",
-        params![
-            "universal_providers",
-            r#"[{"meta":{"is_partner":true,"partner_promotion_key":"legacy"}}]"#,
-        ],
-    )
-    .expect("insert universal providers");
     Database::set_user_version(&conn, 20).expect("set v20");
 
     Database::apply_schema_migrations_on_conn(&conn).expect("apply migration");
@@ -261,28 +244,104 @@ fn schema_migration_removes_partner_metadata() {
             |row| row.get(0),
         )
         .expect("read provider meta");
-    let profile: String = conn
-        .query_row("SELECT payload FROM profiles WHERE id = 'profile-a'", [], |row| {
-            row.get(0)
-        })
-        .expect("read profile");
-    let universal: String = conn
+    let value: serde_json::Value = serde_json::from_str(&meta).expect("parse cleaned JSON");
+    let serialized = value.to_string();
+    assert!(!serialized.contains("isPartner"));
+    assert!(!serialized.contains("primePartner"));
+    assert!(!serialized.contains("partnerPromotionKey"));
+    assert!(!serialized.contains("is_partner"));
+    assert!(!serialized.contains("partner_promotion_key"));
+}
+
+#[test]
+fn schema_migration_archives_legacy_universal_provider_state() {
+    let conn = Connection::open_in_memory().expect("open memory db");
+    Database::create_tables_on_conn(&conn).expect("create tables");
+
+    let legacy_payload = r#"{
+        "legacy": {
+            "id": "legacy",
+            "name": "Legacy Relay",
+            "apps": { "claude": true, "codex": true },
+            "baseUrl": "https://relay.example.com",
+            "apiKey": "legacy-key",
+            "models": {
+                "claude": { "model": "claude-sonnet" },
+                "codex": { "model": "gpt-4o-mini", "reasoningEffort": "low" }
+            },
+            "meta": {
+                "custom_endpoints": {
+                    "https://relay.example.com": {
+                        "url": "https://relay.example.com",
+                        "addedAt": 123
+                    }
+                }
+            }
+        }
+    }"#;
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES ('universal_providers', ?1)",
+        [legacy_payload],
+    )
+    .expect("insert legacy universal provider state");
+    Database::set_user_version(&conn, 21).expect("set v21");
+
+    Database::apply_schema_migrations_on_conn(&conn).expect("apply migration");
+
+    let universal_count: i64 = conn
         .query_row(
-            "SELECT value FROM settings WHERE key = 'universal_providers'",
+            "SELECT COUNT(*) FROM settings WHERE key = 'universal_providers'",
             [],
             |row| row.get(0),
         )
-        .expect("read universal providers");
+        .expect("count legacy universal state");
+    assert_eq!(universal_count, 0);
 
-    for value in [meta, profile, universal] {
-        let value: serde_json::Value = serde_json::from_str(&value).expect("parse cleaned JSON");
-        let serialized = value.to_string();
-        assert!(!serialized.contains("isPartner"));
-        assert!(!serialized.contains("primePartner"));
-        assert!(!serialized.contains("partnerPromotionKey"));
-        assert!(!serialized.contains("is_partner"));
-        assert!(!serialized.contains("partner_promotion_key"));
+    let archived_payload: String = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'legacy_universal_providers'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("read archived universal state");
+    assert_eq!(archived_payload, legacy_payload);
+
+    for (provider_id, app_type) in [
+        ("universal-claude-legacy", "claude"),
+        ("universal-codex-legacy", "codex"),
+    ] {
+        let projected_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM providers WHERE id = ?1 AND app_type = ?2",
+                [provider_id, app_type],
+                |row| row.get(0),
+            )
+            .expect("count projected provider");
+        assert_eq!(
+            projected_count, 1,
+            "enabled legacy shared provider should be projected"
+        );
     }
+
+    let claude_config: String = conn
+        .query_row(
+            "SELECT settings_config FROM providers
+             WHERE id = 'universal-claude-legacy' AND app_type = 'claude'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("read projected Claude provider");
+    assert!(claude_config.contains("legacy-key"));
+
+    let endpoint_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM provider_endpoints
+             WHERE provider_id = 'universal-claude-legacy' AND app_type = 'claude'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("count projected endpoints");
+    assert_eq!(endpoint_count, 1, "custom endpoints must survive projection");
 }
 
 #[test]
@@ -528,11 +587,11 @@ fn migration_v10_to_v11_rebuilds_rollups_with_request_model_dimension() {
 }
 
 #[test]
-fn schema_create_tables_repairs_dev_global_profile_marker() {
+fn schema_migration_removes_profiles_and_archives_snapshots() {
     let conn = Connection::open_in_memory().expect("open memory db");
+    Database::create_tables_on_conn(&conn).expect("create tables");
 
-    // 模拟跑过未发布开发版的库：user_version 已是 12（迁移不会再跑），
-    // 但 current 标记还是全局 key（现按应用分组）
+    // 模拟 v22 的库：profiles 表 + 两代 current 标记（全局 key 与 scope 化 key）
     conn.execute_batch(
         r#"
         CREATE TABLE profiles (
@@ -543,44 +602,86 @@ fn schema_create_tables_repairs_dev_global_profile_marker() {
             created_at INTEGER,
             updated_at INTEGER
         );
-        INSERT INTO profiles (id, name, payload) VALUES ('p1', 'Project A', '{}');
-        CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
-        INSERT INTO settings (key, value) VALUES ('current_profile_id', 'p1');
+        INSERT INTO profiles (id, name, payload) VALUES
+            ('p1', 'Project A', '{"providers":{"claude":"prov-a"}}'),
+            ('p2', 'Project B', '{"providers":{"codex":"prov-b"}}');
+        INSERT INTO settings (key, value) VALUES
+            ('current_profile_id', 'p1'),
+            ('current_profile_id_claude', 'p1'),
+            ('current_profile_id_codex', 'p2');
         "#,
     )
-    .expect("seed dev v12 shape");
-    Database::set_user_version(&conn, 12).expect("set user_version=12");
+    .expect("seed v22 profile shape");
+    Database::set_user_version(&conn, 22).expect("set user_version=22");
 
-    Database::create_tables_on_conn(&conn).expect("create tables should repair marker");
+    Database::apply_schema_migrations_on_conn(&conn).expect("apply migration");
 
-    // 全局 current 标记改名为 claude 组标记，旧 key 删除
-    let claude_marker: String = conn
+    assert_eq!(
+        Database::get_user_version(&conn).expect("read version"),
+        SCHEMA_VERSION
+    );
+    assert!(!Database::table_exists(&conn, "profiles").expect("check profiles table"));
+
+    // 所有 current 标记（含旧的全局 key）都必须清掉
+    let markers: i64 = conn
         .query_row(
-            "SELECT value FROM settings WHERE key = 'current_profile_id_claude'",
+            "SELECT COUNT(*) FROM settings
+             WHERE key = 'current_profile_id' OR key LIKE 'current_profile_id_%'",
             [],
             |row| row.get(0),
         )
-        .expect("scoped current marker");
-    assert_eq!(claude_marker, "p1");
-    let old_marker: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM settings WHERE key = 'current_profile_id'",
-            [],
-            |row| row.get(0),
-        )
-        .expect("count old marker");
-    assert_eq!(old_marker, 0);
+        .expect("count profile markers");
+    assert_eq!(markers, 0);
 
-    // 修复必须幂等：再跑一遍不应破坏已迁移的标记
-    Database::create_tables_on_conn(&conn).expect("repair is idempotent");
-    let claude_marker: String = conn
+    // 快照归档为死数据，保留供回退/排查
+    let archive: String = conn
         .query_row(
-            "SELECT value FROM settings WHERE key = 'current_profile_id_claude'",
+            "SELECT value FROM settings WHERE key = 'legacy_profiles'",
             [],
             |row| row.get(0),
         )
-        .expect("scoped current marker survives");
-    assert_eq!(claude_marker, "p1");
+        .expect("read legacy archive");
+    let archive: serde_json::Value = serde_json::from_str(&archive).expect("parse archive");
+    let entries = archive.as_array().expect("archive is an array");
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0]["name"], "Project A");
+    assert!(entries[0]["payload"]
+        .as_str()
+        .expect("payload kept verbatim")
+        .contains("prov-a"));
+}
+
+#[test]
+fn schema_migration_skips_profile_archive_when_empty() {
+    let conn = Connection::open_in_memory().expect("open memory db");
+    Database::create_tables_on_conn(&conn).expect("create tables");
+
+    conn.execute_batch(
+        r#"
+        CREATE TABLE profiles (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            sort_order INTEGER,
+            created_at INTEGER,
+            updated_at INTEGER
+        );
+        "#,
+    )
+    .expect("seed empty profiles table");
+    Database::set_user_version(&conn, 22).expect("set user_version=22");
+
+    Database::apply_schema_migrations_on_conn(&conn).expect("apply migration");
+
+    assert!(!Database::table_exists(&conn, "profiles").expect("check profiles table"));
+    let archived: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM settings WHERE key = 'legacy_profiles'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("count archive rows");
+    assert_eq!(archived, 0, "empty profiles table should not write an archive");
 }
 
 #[test]

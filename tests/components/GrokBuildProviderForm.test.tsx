@@ -33,14 +33,14 @@ describe("GrokBuildProviderForm", () => {
 
     expect(screen.queryByRole("button", { name: /Kimi/ })).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: /Amux/ }));
+    await user.click(screen.getByRole("button", { name: /OpenRouter/ }));
 
     const baseUrlInput =
       container.querySelector<HTMLInputElement>("#codexBaseUrl");
     const nameInput =
       container.querySelector<HTMLInputElement>('input[name="name"]');
-    expect(baseUrlInput?.value).toBe("https://api.amux.ai/v1");
-    expect(nameInput?.value).toBe("Amux");
+    expect(baseUrlInput?.value).toBe("https://openrouter.ai/api/v1");
+    expect(nameInput?.value).toBe("OpenRouter");
   });
 
   it("submits a complete config.toml payload with Grok defaults", async () => {

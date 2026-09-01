@@ -5,7 +5,6 @@
 use once_cell::sync::Lazy;
 use tauri::menu::{CheckMenuItem, Menu, MenuBuilder, MenuItem, Submenu, SubmenuBuilder};
 use tauri::{Emitter, Manager};
-use tauri_plugin_opener::OpenerExt;
 
 use crate::app_config::AppType;
 use crate::error::AppError;
@@ -45,13 +44,10 @@ static TRAY_SECTION_SUBMENUS: Lazy<
 #[derive(Clone, Copy)]
 pub struct TrayTexts {
     pub show_main: &'static str,
-    pub open_website: &'static str,
     pub no_providers_label: &'static str,
     pub lightweight_mode: &'static str,
     pub quit: &'static str,
     pub _auto_label: &'static str,
-    pub projects_label: &'static str,
-    pub no_project_label: &'static str,
 }
 
 /// 将系统区域标识映射为托盘支持的语言码。
@@ -83,23 +79,17 @@ impl TrayTexts {
         match language {
             "en" => Self {
                 show_main: "Open main window",
-                open_website: "Open Official Website",
                 no_providers_label: "(no providers)",
                 lightweight_mode: "Lightweight Mode",
                 quit: "Quit",
                 _auto_label: "Auto (Failover)",
-                projects_label: "Projects",
-                no_project_label: "No project",
             },
             _ => Self {
                 show_main: "打开主界面",
-                open_website: "打开官方网站",
                 no_providers_label: "(无供应商)",
                 lightweight_mode: "轻量模式",
                 quit: "退出",
                 _auto_label: "自动 (故障转移)",
-                projects_label: "项目",
-                no_project_label: "不使用项目",
             },
         }
     }
@@ -292,7 +282,11 @@ fn format_usage_suffix(
 ) -> Option<String> {
     // 当前脚本是否启用：禁用/删除时不再沿用旧 UsageCache 结果，
     // 并顺手 invalidate，防止后续重建继续命中过期数据。
-    let is_official_provider = provider.category.as_deref() == Some("official");
+    let is_official_provider = if matches!(app_type, AppType::Codex) {
+        crate::proxy::providers::is_codex_official_provider(provider)
+    } else {
+        provider.category.as_deref() == Some("official")
+    };
     let can_use_script = provider.has_usage_script_enabled()
         && (!is_official_provider || provider_uses_official_subscription(provider));
     if can_use_script {
@@ -347,95 +341,6 @@ fn sort_providers(
         a.name.cmp(&b.name)
     });
     sorted
-}
-
-/// 处理项目 Profile 托盘事件，返回是否已处理
-///
-/// 事件 id 形如 `profile_<scope>_<uuid>`（同一项目在各分组子菜单里各有一项，
-/// 应用时只作用于该分组）；`profile_none_<scope>` 表示某分组"不使用项目"
-/// （只清该分组标记，不动配置）。
-pub fn handle_profile_tray_event(app: &tauri::AppHandle, event_id: &str) -> bool {
-    let Some(suffix) = event_id.strip_prefix("profile_") else {
-        return false;
-    };
-
-    if let Some(scope_str) = suffix.strip_prefix("none_") {
-        let Ok(scope) = crate::services::profile::ProfileScope::parse(scope_str) else {
-            log::error!("未知的项目分组托盘事件: {event_id}");
-            return true;
-        };
-        if let Some(app_state) = app.try_state::<AppState>() {
-            if let Err(e) = app_state.db.set_current_profile_id(scope.as_str(), None) {
-                log::error!("清除当前项目失败: {e}");
-            }
-        }
-        // 通知主窗口刷新（profileId=null 表示该分组已清除当前项目）
-        if let Err(e) = app.emit(
-            "profile-applied",
-            serde_json::json!({ "profileId": null, "scope": scope.as_str() }),
-        ) {
-            log::error!("发射 profile-applied 事件失败: {e}");
-        }
-        refresh_tray_menu(app);
-        return true;
-    }
-
-    // scope 是固定枚举字符串（不含下划线），uuid 只含连字符，首个下划线即分界
-    let Some((scope_str, profile_id)) = suffix.split_once('_') else {
-        log::error!("无法解析项目托盘事件: {event_id}");
-        return true;
-    };
-    let Ok(scope) = crate::services::profile::ProfileScope::parse(scope_str) else {
-        log::error!("未知的项目分组托盘事件: {event_id}");
-        return true;
-    };
-
-    log::info!("应用项目: {profile_id}（{scope_str} 组）");
-    let app_handle = app.clone();
-    let profile_id = profile_id.to_string();
-    tauri::async_runtime::spawn_blocking(move || {
-        let Some(app_state) = app_handle.try_state::<AppState>() else {
-            return;
-        };
-        match crate::services::profile::ProfileService::apply(app_state.inner(), &profile_id, scope)
-        {
-            Ok((warnings, should_stop_proxy)) => {
-                for warning in &warnings {
-                    log::warn!("[Profile] 应用项目 {profile_id} 警告: {warning}");
-                }
-
-                if should_stop_proxy {
-                    let app_handle2 = app_handle.clone();
-                    let proxy_service = app_state.proxy_service.clone();
-                    tauri::async_runtime::spawn(async move {
-                        if let Err(e) = proxy_service.stop().await {
-                            log::warn!("托盘切换项目后停止代理服务失败: {e}");
-                        }
-                        if let Some(state) = app_handle2.try_state::<AppState>() {
-                            crate::commands::emit_profile_apply_events(
-                                &app_handle2,
-                                state.inner(),
-                                &profile_id,
-                                scope,
-                            );
-                        }
-                    });
-                } else {
-                    crate::commands::emit_profile_apply_events(
-                        &app_handle,
-                        app_state.inner(),
-                        &profile_id,
-                        scope,
-                    );
-                }
-            }
-            Err(e) => {
-                log::error!("应用项目 {profile_id} 失败: {e}");
-                refresh_tray_menu(&app_handle);
-            }
-        }
-    });
-    true
 }
 
 /// 处理供应商托盘事件
@@ -663,22 +568,11 @@ pub fn create_tray_menu(
     let mut section_handles: std::collections::HashMap<AppType, Submenu<tauri::Wry>> =
         std::collections::HashMap::new();
 
-    // 顶部：打开主界面 / 打开官方网站
+    // 顶部：打开主界面
     let show_main_item =
         MenuItem::with_id(app, "show_main", tray_texts.show_main, true, None::<&str>)
             .map_err(|e| AppError::Message(format!("创建打开主界面菜单失败: {e}")))?;
-    let open_website_item = MenuItem::with_id(
-        app,
-        "open_website",
-        tray_texts.open_website,
-        true,
-        None::<&str>,
-    )
-    .map_err(|e| AppError::Message(format!("创建打开官方网站菜单失败: {e}")))?;
-    menu_builder = menu_builder
-        .item(&show_main_item)
-        .item(&open_website_item)
-        .separator();
+    menu_builder = menu_builder.item(&show_main_item).separator();
 
     // Pre-compute proxy running state (used to disable official providers in tray menu)
     let is_proxy_running = futures::executor::block_on(app_state.proxy_service.is_running());
@@ -731,7 +625,10 @@ pub fn create_tray_menu(
             for (id, provider) in sort_providers(&providers) {
                 let is_current = current_id == *id;
                 let is_official_blocked = is_app_taken_over
-                    && provider.category.as_deref() == Some("official")
+                    && crate::services::provider::is_official_provider_for_app(
+                        &section.app_type,
+                        provider,
+                    )
                     && !crate::services::provider::official_provider_supports_proxy_takeover(
                         &section.app_type,
                         provider,
@@ -763,90 +660,6 @@ pub fn create_tray_menu(
         }
 
         menu_builder = menu_builder.separator();
-    }
-
-    // 项目 Profile 子菜单：项目列表全应用共享，按分组嵌套子菜单各自勾选/应用
-    // （组内应用可见且存在项目时才显示该组）
-    {
-        use crate::services::profile::ProfileScope;
-
-        let any_scope_visible = ProfileScope::ALL.iter().any(|scope| {
-            scope
-                .apps()
-                .iter()
-                .any(|app_type| visible_apps.is_visible(app_type))
-        });
-        let profiles = if any_scope_visible {
-            app_state.db.get_all_profiles()?
-        } else {
-            Vec::new()
-        };
-
-        let mut scope_submenus = Vec::new();
-        for scope in ProfileScope::ALL {
-            if profiles.is_empty()
-                || !scope
-                    .apps()
-                    .iter()
-                    .any(|app_type| visible_apps.is_visible(app_type))
-            {
-                continue;
-            }
-            let current_profile_id = app_state
-                .db
-                .get_current_profile_id(scope.as_str())?
-                .unwrap_or_default();
-            // 分组标签用产品名，不进 i18n
-            let scope_label = match scope {
-                ProfileScope::Claude => "Claude Code",
-                ProfileScope::ClaudeDesktop => "Claude Desktop",
-                ProfileScope::Codex => "Codex",
-            };
-            let mut scope_builder = SubmenuBuilder::with_id(
-                app,
-                format!("submenu_profiles_{}", scope.as_str()),
-                scope_label,
-            );
-            for profile in &profiles {
-                let item = CheckMenuItem::with_id(
-                    app,
-                    format!("profile_{}_{}", scope.as_str(), profile.id),
-                    &profile.name,
-                    true,
-                    current_profile_id == profile.id,
-                    None::<&str>,
-                )
-                .map_err(|e| AppError::Message(format!("创建项目菜单项失败: {e}")))?;
-                scope_builder = scope_builder.item(&item);
-            }
-            let none_item = CheckMenuItem::with_id(
-                app,
-                format!("profile_none_{}", scope.as_str()),
-                tray_texts.no_project_label,
-                true,
-                current_profile_id.is_empty(),
-                None::<&str>,
-            )
-            .map_err(|e| AppError::Message(format!("创建不使用项目菜单项失败: {e}")))?;
-            let scope_submenu = scope_builder
-                .separator()
-                .item(&none_item)
-                .build()
-                .map_err(|e| AppError::Message(format!("构建项目分组子菜单失败: {e}")))?;
-            scope_submenus.push(scope_submenu);
-        }
-
-        if !scope_submenus.is_empty() {
-            let mut profiles_builder =
-                SubmenuBuilder::with_id(app, "submenu_profiles", tray_texts.projects_label);
-            for scope_submenu in &scope_submenus {
-                profiles_builder = profiles_builder.item(scope_submenu);
-            }
-            let profiles_submenu = profiles_builder
-                .build()
-                .map_err(|e| AppError::Message(format!("构建项目子菜单失败: {e}")))?;
-            menu_builder = menu_builder.item(&profiles_submenu).separator();
-        }
     }
 
     let lightweight_item = CheckMenuItem::with_id(
@@ -975,14 +788,6 @@ pub fn handle_tray_menu_event(app: &tauri::AppHandle, event_id: &str) {
                 }
             }
         }
-        "open_website" => {
-            if let Err(e) = app
-                .opener()
-                .open_url("https://github.com/shengmingboai/cc-switch", None::<String>)
-            {
-                log::error!("打开官方网站失败: {e}");
-            }
-        }
         "lightweight_mode" => {
             if crate::lightweight::is_lightweight_mode() {
                 if let Err(e) = crate::lightweight::exit_lightweight_mode(app) {
@@ -997,9 +802,6 @@ pub fn handle_tray_menu_event(app: &tauri::AppHandle, event_id: &str) {
             app.exit(0);
         }
         _ => {
-            if handle_profile_tray_event(app, event_id) {
-                return;
-            }
             if handle_provider_tray_event(app, event_id) {
                 return;
             }
@@ -1102,7 +904,11 @@ pub(crate) async fn refresh_all_usage_in_tray(app: &tauri::AppHandle) {
         };
 
         // 与 format_usage_suffix 同一优先级：只有显式启用的用量查询才发请求。
-        let is_official_provider = current.category.as_deref() == Some("official");
+        let is_official_provider = if matches!(&section.app_type, AppType::Codex) {
+            crate::proxy::providers::is_codex_official_provider(&current)
+        } else {
+            current.category.as_deref() == Some("official")
+        };
         if current.has_usage_script_enabled()
             && (!is_official_provider || provider_uses_official_subscription(&current))
         {

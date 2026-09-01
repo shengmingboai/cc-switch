@@ -235,11 +235,11 @@ export function ProviderActions({
 
   const buttonState = getMainButtonState();
   const canDelete =
-    (appId === "pi"
+    appId === "pi"
       ? !isStateChangeProtected
       : isOmo || isAdditiveMode
         ? true
-        : !isCurrent);
+        : !isCurrent;
   const deleteHint =
     appId === "pi" && isStateChangeProtected
       ? piStateChangeHint

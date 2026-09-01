@@ -71,7 +71,6 @@ pub(crate) fn should_trigger_auto_sync_for_table(table: &str) -> bool {
             | "prompts"
             | "skills"
             | "skill_repos"
-            | "profiles"
             | "settings"
             | "proxy_config"
     )
@@ -501,7 +500,6 @@ mod tests {
             "prompts",
             "skills",
             "skill_repos",
-            "profiles",
             "settings",
             "proxy_config",
         ] {
@@ -511,7 +509,8 @@ mod tests {
             );
         }
 
-        assert!(should_trigger_auto_sync_for_table("  PROFILES  "));
+        // 大小写与空白必须归一化后再匹配
+        assert!(should_trigger_auto_sync_for_table("  PROVIDERS  "));
         for table in [
             "proxy_request_logs",
             "provider_health",

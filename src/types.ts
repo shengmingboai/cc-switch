@@ -191,10 +191,7 @@ export interface ProviderMeta {
   // - "anthropic": 原生 Anthropic Messages API 格式，直接透传
   // - "openai_chat": OpenAI Chat Completions 格式，需要格式转换
   // - "openai_responses": OpenAI Responses API 格式，需要格式转换
-  apiFormat?:
-    | "anthropic"
-    | "openai_chat"
-    | "openai_responses";
+  apiFormat?: "anthropic" | "openai_chat" | "openai_responses";
   // 通用认证绑定
   authBinding?: AuthBinding;
   // Claude 认证字段名
@@ -240,10 +237,7 @@ export type SkillStorageLocation = "cc_switch" | "unified";
 // - "anthropic": 原生 Anthropic Messages API 格式，直接透传
 // - "openai_chat": OpenAI Chat Completions 格式，需要格式转换
 // - "openai_responses": OpenAI Responses API 格式，需要格式转换
-export type ClaudeApiFormat =
-  | "anthropic"
-  | "openai_chat"
-  | "openai_responses";
+export type ClaudeApiFormat = "anthropic" | "openai_chat" | "openai_responses";
 
 // Codex API 格式类型
 // - "openai_responses": OpenAI Responses API 格式，直接透传
@@ -368,10 +362,6 @@ export interface Settings {
   sessionAutoSyncEnabled?: boolean;
   // Whether to show the failover toggle independently on the main page
   enableFailoverToggle?: boolean;
-  // Whether to show the project profile switcher on the main page header
-  showProfileSwitcher?: boolean;
-  // Preserve Codex ChatGPT login in auth.json when switching third-party providers
-  preserveCodexOfficialAuthOnSwitch?: boolean;
   // Run official Codex under the shared "custom" provider id so future
   // sessions share one resume-history bucket with third-party providers
   unifyCodexSessionHistory?: boolean;
@@ -523,57 +513,6 @@ export interface McpConfigResponse {
   configPath: string;
   servers: Record<string, McpServer>;
 }
-
-// ============================================================================
-// 统一供应商（Universal Provider）- 跨应用共享配置
-// ============================================================================
-
-// 统一供应商的应用启用状态
-export interface UniversalProviderApps {
-  claude: boolean;
-  codex: boolean;
-}
-
-// Claude 模型配置
-export interface ClaudeModelConfig {
-  model?: string;
-  haikuModel?: string;
-  sonnetModel?: string;
-  opusModel?: string;
-}
-
-// Codex 模型配置
-export interface CodexModelConfig {
-  model?: string;
-  reasoningEffort?: string;
-}
-
-// 各应用的模型配置
-export interface UniversalProviderModels {
-  claude?: ClaudeModelConfig;
-  codex?: CodexModelConfig;
-}
-
-// 统一供应商（跨应用共享配置）
-export interface UniversalProvider {
-  id: string;
-  name: string;
-  providerType: string; // "newapi" | "custom" 等
-  apps: UniversalProviderApps;
-  baseUrl: string;
-  apiKey: string;
-  models: UniversalProviderModels;
-  websiteUrl?: string;
-  notes?: string;
-  icon?: string;
-  iconColor?: string;
-  meta?: ProviderMeta;
-  createdAt?: number;
-  sortIndex?: number;
-}
-
-// 统一供应商映射（id -> UniversalProvider）
-export type UniversalProvidersMap = Record<string, UniversalProvider>;
 
 // ============================================================================
 // OpenCode 专属配置（v3.9.2+）

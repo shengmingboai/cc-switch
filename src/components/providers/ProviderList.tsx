@@ -438,9 +438,7 @@ export function ProviderList({
                 activeProviderId={
                   supportsFailover ? activeProviderId : undefined
                 }
-                isRemovalProtected={
-                  appId === "pi" ? false : false
-                }
+                isRemovalProtected={appId === "pi" ? false : false}
                 isStateChangeProtected={
                   appId === "pi" && !isPiAuthoritativeStateReady
                 }

@@ -76,7 +76,6 @@ requires_openai_auth = true`;
 }
 
 export const grokBuildProviderPresets: GrokBuildProviderPreset[] = [
-  // ===== 内置预设：应用内展示按显示名排序，此处文件顺序不影响展示 =====
   {
     name: "xAI (Grok)",
     websiteUrl: "https://x.ai/api",
@@ -88,29 +87,6 @@ export const grokBuildProviderPresets: GrokBuildProviderPreset[] = [
     category: "third_party",
     icon: "xai",
     iconColor: "#000000",
-  },
-  {
-    name: "Amux",
-    websiteUrl: "https://amux.ai",
-    apiKeyUrl: "https://amux.ai",
-    auth: grokAuth(),
-    config: grokPresetConfig("Amux", "https://api.amux.ai/v1"),
-    endpointCandidates: ["https://api.amux.ai/v1"],
-    category: "aggregator",
-    icon: "amux",
-  },
-  {
-    name: "AiHubMix",
-    websiteUrl: "https://aihubmix.com",
-    auth: grokAuth(),
-    config: grokPresetConfig("AiHubMix", "https://aihubmix.com/v1"),
-    endpointCandidates: [
-      "https://aihubmix.com/v1",
-      "https://api.aihubmix.com/v1",
-    ],
-    category: "aggregator",
-    icon: "aihubmix",
-    iconColor: "#006FFB",
   },
   {
     name: "OpenRouter",

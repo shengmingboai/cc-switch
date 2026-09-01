@@ -587,7 +587,6 @@ const McpFormModal: React.FC<McpFormModalProps> = ({
                     {t("mcp.unifiedPanel.apps.opencode")}
                   </label>
                 </div>
-
               </div>
             </div>
 

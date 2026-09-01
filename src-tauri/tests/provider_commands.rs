@@ -11,8 +11,7 @@ use cc_switch_lib::{
 mod support;
 use std::collections::HashMap;
 use support::{
-    create_test_state, create_test_state_with_config, enable_codex_official_auth_preservation,
-    ensure_test_home, reset_test_fs, test_mutex,
+    create_test_state, create_test_state_with_config, ensure_test_home, reset_test_fs, test_mutex,
 };
 
 fn settings_path(home: &Path) -> PathBuf {
@@ -181,11 +180,11 @@ fn codex_startup_import_accepts_config_without_auth_file() {
     }
     std::fs::write(
         &config_path,
-        r#"model_provider = "aihubmix"
+        r#"model_provider = "relay"
 
-[model_providers.aihubmix]
-name = "AiHubMix"
-base_url = "https://aihubmix.example/v1"
+[model_providers.relay]
+name = "Relay"
+base_url = "https://relay.example/v1"
 wire_api = "responses"
 requires_openai_auth = true
 experimental_bearer_token = "live-key"
@@ -314,7 +313,6 @@ fn codex_startup_import_skips_when_only_official_seed_exists() {
 fn switch_provider_updates_codex_live_and_state() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
-    enable_codex_official_auth_preservation();
     let _home = ensure_test_home();
 
     let legacy_auth = json!({"OPENAI_API_KEY": "legacy-key"});
@@ -389,15 +387,9 @@ command = "say"
     switch_provider_test_hook(&app_state, AppType::Codex, "new-provider")
         .expect("switch provider should succeed");
 
-    let auth_value: serde_json::Value =
-        read_json_file(&get_codex_auth_path()).expect("read auth.json");
-    assert_eq!(
-        auth_value
-            .get("OPENAI_API_KEY")
-            .and_then(|v| v.as_str())
-            .unwrap_or(""),
-        "legacy-key",
-        "Codex provider switching should preserve the existing live auth.json"
+    assert!(
+        !get_codex_auth_path().exists(),
+        "direct third-party switching must remove the outgoing auth.json"
     );
 
     let config_text = std::fs::read_to_string(get_codex_config_path()).expect("read config.toml");

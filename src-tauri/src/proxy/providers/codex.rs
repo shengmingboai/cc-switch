@@ -236,29 +236,52 @@ fn has_explicit_codex_third_party_upstream(provider: &Provider) -> bool {
                 .unwrap_or_else(|_| text.to_string())
         });
     let config = config.as_deref();
+    let parsed = config.and_then(|text| text.parse::<TomlValue>().ok());
+    let model_provider_id = parsed
+        .as_ref()
+        .and_then(|doc| doc.get("model_provider"))
+        .and_then(TomlValue::as_str)
+        .map(str::trim)
+        .filter(|provider_id| !provider_id.is_empty());
+    let active_table = model_provider_id.and_then(|provider_id| {
+        parsed
+            .as_ref()
+            .and_then(|doc| doc.get("model_providers"))
+            .and_then(|providers| providers.get(provider_id))
+    });
+    let has_provider_bearer = active_table
+        .and_then(|table| table.get("experimental_bearer_token"))
+        .and_then(TomlValue::as_str)
+        .is_some_and(|value| !value.trim().is_empty());
+    let has_top_level_bearer = parsed
+        .as_ref()
+        .and_then(|doc| doc.get("experimental_bearer_token"))
+        .and_then(TomlValue::as_str)
+        .is_some_and(|value| !value.trim().is_empty());
+    let has_provider_base_url = active_table
+        .and_then(|table| table.get("base_url"))
+        .and_then(TomlValue::as_str)
+        .is_some_and(|value| !value.trim().is_empty());
+    let has_top_level_base_url = parsed
+        .as_ref()
+        .and_then(|doc| doc.get("base_url"))
+        .and_then(TomlValue::as_str)
+        .is_some_and(|value| !value.trim().is_empty());
+    let has_top_level_openai_base_url = parsed
+        .as_ref()
+        .and_then(|doc| doc.get("openai_base_url"))
+        .and_then(TomlValue::as_str)
+        .is_some_and(|value| !value.trim().is_empty());
 
     ["baseUrl", "baseURL", "base_url"]
         .into_iter()
         .any(non_empty_setting)
-        || config
-            .and_then(crate::codex_config::extract_codex_experimental_bearer_token)
-            .is_some()
-        || config
-            .and_then(crate::codex_config::extract_codex_base_url)
-            .is_some()
-        || config
-            .and_then(|text| text.parse::<TomlValue>().ok())
-            .and_then(|doc| {
-                doc.get("model_provider")
-                    .and_then(TomlValue::as_str)
-                    .map(str::trim)
-                    .filter(|provider_id| !provider_id.is_empty())
-                    .map(str::to_string)
-            })
-            // Exact match, mirroring upstream: the built-in lookup is
-            // case-sensitive, so `OpenAI` routes to a custom table — a
-            // third-party upstream, not the official provider.
-            .is_some_and(|provider_id| provider_id != "openai")
+        || has_provider_bearer
+        || has_top_level_bearer
+        || has_provider_base_url
+        || has_top_level_base_url
+        || has_top_level_openai_base_url
+        || model_provider_id.is_some_and(|provider_id| provider_id != "openai")
 }
 
 /// Codex Official ChatGPT cards receive authentication from the calling Codex
@@ -267,10 +290,6 @@ fn has_explicit_codex_third_party_upstream(provider: &Provider) -> bool {
 /// backend. The fixed legacy card keeps its existing behavior.
 pub fn is_codex_official_provider(provider: &Provider) -> bool {
     let is_fixed_official_id = provider.id == crate::database::CODEX_OFFICIAL_PROVIDER_ID;
-    if is_fixed_official_id && provider.category.as_deref() == Some("official") {
-        return true;
-    }
-
     let has_auth_object = provider
         .settings_config
         .get("auth")
@@ -281,6 +300,34 @@ pub fn is_codex_official_provider(provider: &Provider) -> bool {
         .is_none_or(|config| config.is_null() || config.is_string());
     if !has_auth_object || !has_valid_config_shape {
         return false;
+    }
+
+    // The built-in seed is on the hot request path. Avoid parsing its known-empty
+    // config while still refusing the fast path when a user added an endpoint or
+    // API key to the fixed card.
+    let config_is_empty = provider.settings_config.get("config").is_none_or(|config| {
+        config.is_null() || config.as_str().is_some_and(|text| text.trim().is_empty())
+    });
+    let has_json_endpoint = ["baseUrl", "baseURL", "base_url"].into_iter().any(|key| {
+        provider
+            .settings_config
+            .get(key)
+            .and_then(JsonValue::as_str)
+            .is_some_and(|value| !value.trim().is_empty())
+    });
+    let has_api_key = provider
+        .settings_config
+        .get("auth")
+        .and_then(|auth| auth.get("OPENAI_API_KEY"))
+        .and_then(JsonValue::as_str)
+        .is_some_and(|key| !key.trim().is_empty());
+    if is_fixed_official_id
+        && provider.category.as_deref() == Some("official")
+        && config_is_empty
+        && !has_json_endpoint
+        && !has_api_key
+    {
+        return true;
     }
 
     if has_explicit_codex_third_party_upstream(provider) {
@@ -307,6 +354,44 @@ pub fn is_codex_official_provider(provider: &Provider) -> bool {
     }
 
     is_fixed_official_id || provider.category.as_deref() == Some("official")
+}
+
+/// Whether a Codex provider owns the live auth file even when it carries an
+/// OpenAI API key. This is separate from `is_codex_official_provider`: API-key
+/// cards use the direct OpenAI endpoint rather than the ChatGPT backend, but an
+/// explicitly official card still needs its key written to `auth.json` when it
+/// has no third-party upstream.
+pub fn is_codex_official_auth_provider(provider: &Provider) -> bool {
+    if is_codex_official_provider(provider) {
+        return true;
+    }
+
+    let is_fixed_or_official = provider.id == crate::database::CODEX_OFFICIAL_PROVIDER_ID
+        || provider.category.as_deref() == Some("official");
+    if !is_fixed_or_official {
+        return false;
+    }
+    let has_auth_object = provider
+        .settings_config
+        .get("auth")
+        .is_some_and(JsonValue::is_object);
+    let has_valid_config_shape = provider
+        .settings_config
+        .get("config")
+        .is_none_or(|config| config.is_null() || config.is_string());
+    if !has_auth_object || !has_valid_config_shape {
+        return false;
+    }
+    if has_explicit_codex_third_party_upstream(provider) {
+        return false;
+    }
+
+    provider
+        .settings_config
+        .get("auth")
+        .and_then(|auth| auth.get("OPENAI_API_KEY"))
+        .and_then(JsonValue::as_str)
+        .is_some_and(|key| !key.trim().is_empty())
 }
 
 /// Resolve the model-catalog tool profile for a Codex provider using the SAME
@@ -1102,6 +1187,7 @@ context_window = 500000
         }));
         official_api_key.category = Some("official".to_string());
         assert!(!is_codex_official_provider(&official_api_key));
+        assert!(is_codex_official_auth_provider(&official_api_key));
 
         let mut stored_bearer = create_provider(json!({
             "auth": {},
@@ -1133,6 +1219,18 @@ context_window = 500000
         }));
         explicit_openai.category = Some("official".to_string());
         assert!(!is_codex_official_provider(&explicit_openai));
+
+        let mut legacy_openai_reroute = create_provider(json!({
+            "auth": {
+                "auth_mode": "chatgpt",
+                "tokens": { "access_token": "oauth-token" }
+            },
+            "config": "model_provider = \"openai\"\nopenai_base_url = \"https://relay.example/v1\""
+        }));
+        legacy_openai_reroute.id = crate::database::CODEX_OFFICIAL_PROVIDER_ID.to_string();
+        legacy_openai_reroute.category = Some("official".to_string());
+        assert!(!is_codex_official_provider(&legacy_openai_reroute));
+        assert!(!is_codex_official_auth_provider(&legacy_openai_reroute));
 
         let mut managed_with_null_config = provider.clone();
         managed_with_null_config.category = None;

@@ -6,12 +6,7 @@ import { settingsApi, type AppId } from "@/lib/api";
 import type { SettingsFormState } from "./useSettingsForm";
 
 export type DirectoryAppId = Exclude<AppId, "claude-desktop">;
-type AppDirectoryKey =
-  | "claude"
-  | "codex"
-  | "grokbuild"
-  | "opencode"
-  | "pi";
+type AppDirectoryKey = "claude" | "codex" | "grokbuild" | "opencode" | "pi";
 
 export interface ResolvedDirectories {
   appConfig: string;

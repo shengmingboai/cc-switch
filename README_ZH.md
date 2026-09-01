@@ -42,7 +42,6 @@
 ### 供应商管理
 
 - **6 个支持工具与内置预设** — Claude Code、Claude Desktop、Codex、Grok Build、OpenCode、Pi；复制 key 即可一键导入
-- **通用供应商** — 一份配置同步到 Claude Code 和 Codex
 - 一键切换、系统托盘快速访问、拖拽排序、导入导出
 
 ### 代理与故障转移
@@ -364,7 +363,6 @@ pnpm test:unit --coverage
 │   │   ├── settings/           # 设置（终端/备份/关于）
 │   │   ├── deeplink/           # Deep Link 导入
 │   │   ├── env/                # 环境变量管理
-│   │   ├── universal/          # 跨应用配置
 │   │   ├── usage/              # 用量统计
 │   │   └── ui/                 # shadcn/ui 组件库
 │   ├── hooks/                  # 自定义 hooks（业务逻辑）

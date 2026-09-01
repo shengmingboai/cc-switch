@@ -274,33 +274,6 @@ export const opencodeProviderPresets: OpenCodeProviderPreset[] = [
     },
   },
 
-  // ===== 内置预设：应用内展示按显示名排序，此处文件顺序不影响展示 =====
-  {
-    name: "Amux",
-    websiteUrl: "https://amux.ai",
-    apiKeyUrl: "https://amux.ai",
-    settingsConfig: {
-      npm: "@ai-sdk/openai-compatible",
-      name: "Amux",
-      options: {
-        baseURL: "https://api.amux.ai/v1",
-        apiKey: "",
-        setCacheKey: true,
-      },
-      models: {
-        "gpt-5.6-sol": { name: "GPT-5.6 Sol" },
-      },
-    },
-    category: "aggregator",
-    icon: "amux",
-    templateValues: {
-      apiKey: {
-        label: "API Key",
-        placeholder: "",
-        editorValue: "",
-      },
-    },
-  },
   {
     name: "DeepSeek",
     websiteUrl: "https://platform.deepseek.com",
@@ -395,46 +368,6 @@ export const opencodeProviderPresets: OpenCodeProviderPreset[] = [
     },
   },
   {
-    // 千帆 Token Plan 个人版（2026-07-13 起替代 Coding Plan 发售）：官方
-    // OpenCode 接入页确认 /v2/tokenplan/personal + @ai-sdk/openai-compatible；
-    // 阵容=Token Plan 主文档 2026-08-14 版六模型（ernie-5.1 8/20 下线不收）
-    name: "Baidu Qianfan Token Plan",
-    websiteUrl: "https://cloud.baidu.com/product/codingplan.html",
-    apiKeyUrl: "https://console.bce.baidu.com/qianfan/resource/token-plan",
-    settingsConfig: {
-      npm: "@ai-sdk/openai-compatible",
-      name: "Baidu Qianfan Token Plan",
-      options: {
-        baseURL: "https://qianfan.baidubce.com/v2/tokenplan/personal",
-        apiKey: "",
-      },
-      models: {
-        "deepseek-v4-pro": { name: "DeepSeek V4 Pro" },
-        "deepseek-v4-flash": { name: "DeepSeek V4 Flash" },
-        "deepseek-v4-flash-0731": { name: "DeepSeek V4 Flash 0731" },
-        "glm-5.2": { name: "GLM-5.2" },
-        "glm-5.1": { name: "GLM-5.1" },
-        "kimi-k2.6": { name: "Kimi K2.6" },
-      },
-    },
-    category: "cn_official",
-    icon: "baidu",
-    iconColor: "#2932E1",
-    templateValues: {
-      baseURL: {
-        label: "Base URL",
-        placeholder: "https://qianfan.baidubce.com/v2/tokenplan/personal",
-        defaultValue: "https://qianfan.baidubce.com/v2/tokenplan/personal",
-        editorValue: "",
-      },
-      apiKey: {
-        label: "API Key",
-        placeholder: "",
-        editorValue: "",
-      },
-    },
-  },
-  {
     name: "Bailian",
     websiteUrl: "https://bailian.console.aliyun.com",
     apiKeyUrl: "https://bailian.console.aliyun.com/#/api-key",
@@ -511,30 +444,6 @@ export const opencodeProviderPresets: OpenCodeProviderPreset[] = [
     category: "cn_official",
     icon: "minimax",
     iconColor: "#FF6B6B",
-    templateValues: {
-      apiKey: {
-        label: "API Key",
-        placeholder: "",
-        editorValue: "",
-      },
-    },
-  },
-  {
-    name: "BaiLing",
-    websiteUrl: "https://alipaytbox.yuque.com/sxs0ba/ling/get_started",
-    settingsConfig: {
-      npm: "@ai-sdk/openai-compatible",
-      name: "BaiLing",
-      options: {
-        baseURL: "https://api.tbox.cn/v1",
-        apiKey: "",
-        setCacheKey: true,
-      },
-      models: {
-        "Ling-2.5-1T": { name: "Ling 2.5-1T" },
-      },
-    },
-    category: "cn_official",
     templateValues: {
       apiKey: {
         label: "API Key",
@@ -639,34 +548,6 @@ export const opencodeProviderPresets: OpenCodeProviderPreset[] = [
     category: "third_party",
     icon: "opencode",
     iconColor: "#211E1E",
-    templateValues: {
-      apiKey: {
-        label: "API Key",
-        placeholder: "",
-        editorValue: "",
-      },
-    },
-  },
-  {
-    name: "AiHubMix",
-    websiteUrl: "https://aihubmix.com",
-    apiKeyUrl: "https://aihubmix.com",
-    settingsConfig: {
-      npm: "@ai-sdk/anthropic",
-      name: "AiHubMix",
-      options: {
-        baseURL: "https://aihubmix.com/v1",
-        apiKey: "",
-        setCacheKey: true,
-      },
-      models: {
-        "claude-sonnet-5": { name: "Claude Sonnet 5" },
-        "claude-opus-5": { name: "Claude Opus 5" },
-      },
-    },
-    category: "aggregator",
-    icon: "aihubmix",
-    iconColor: "#006FFB",
     templateValues: {
       apiKey: {
         label: "API Key",

@@ -37,9 +37,6 @@ describe("Codex preset pre-filled reasoning levels", () => {
   // 第四位=期望的显式 defaultReasoningLevel：仅在官方默认 ≠ 后端回落结果时
   // 声明（后端回落=模板默认 ∈ 子集则保留、否则取子集最高档），其余一律留空
   const EXPECTED: Array<[string, string, string[], string?]> = [
-    // 混元官方枚举 low/high；hy3 开源 chat template 对其他值直接 raise
-    ["Tencent Hunyuan", "hy3", ["low", "high"]],
-    ["Tencent Hunyuan", "hy3-preview", ["low", "high"]],
     // xAI Reasoning guide 模型级枚举；grok-4.5 不可关思考故无 none
     ["xAI (Grok)", "grok-4.5", ["low", "medium", "high"]],
     ["xAI (Grok) OAuth", "grok-4.5", ["low", "medium", "high"]],
@@ -58,15 +55,6 @@ describe("Codex preset pre-filled reasoning levels", () => {
     // 等价开思考；只暴露两态，顺带补上模板四档里缺失的 none（关思考入口）
     ["Zhipu GLM", "glm-5.2", ["none", "high"]],
     ["Zhipu GLM en", "glm-5.2", ["none", "high"]],
-    // 千帆 v2 官方 thinking:{type}（声明已补）→ 两态
-    ["Baidu Qianfan Coding Plan", "qianfan-code-latest", ["none", "high"]],
-    // 千帆 Token Plan：deepseek-v4-pro/v4-flash 在 thinking+reasoning_effort
-    // 双官方清单内（effort 仅 high/max 两档真实深度）；不声明 default=回落
-    // max，恰好等于平台对复杂 Agent 类请求的自动行为。glm-5.1 只在 thinking
-    // 清单 → 两态
-    ["Baidu Qianfan Token Plan", "deepseek-v4-pro", ["none", "high", "max"]],
-    ["Baidu Qianfan Token Plan", "deepseek-v4-flash", ["none", "high", "max"]],
-    ["Baidu Qianfan Token Plan", "glm-5.1", ["none", "high"]],
     // Kimi 开放平台：k2.7-code 始终思考且官方标注不支持 effort → 单档；k3
     // 三档（官方默认 max=后端回落结果，无需显式 default）。均关不掉思考无 none
     ["Kimi", "kimi-k2.7-code", ["high"]],
@@ -113,11 +101,6 @@ describe("Codex preset pre-filled reasoning levels", () => {
       // Nvidia NIM：无思考开关（真参数 chat_template_kwargs 不在值域），
       // 声明已改 thinkingParam:none 撤销假开关
       ["Nvidia", "moonshotai/kimi-k2.5"],
-      // 千帆 Token Plan：三模型均不在 thinking 官方清单（2026-05-27 版）且
-      // 无任何官方接入示例下发思考字段——无证据不造档位
-      ["Baidu Qianfan Token Plan", "deepseek-v4-flash-0731"],
-      ["Baidu Qianfan Token Plan", "glm-5.2"],
-      ["Baidu Qianfan Token Plan", "kimi-k2.6"],
     ];
     for (const [presetName, modelId] of UNFILLED) {
       const model = catalogModel(presetName, modelId);

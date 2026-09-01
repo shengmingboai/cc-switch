@@ -162,11 +162,16 @@ impl StreamCheckService {
     /// 响应都证明端口可达，因此无需像旧的真实请求检查那样解析具体 API 路径
     /// （`/v1/messages` vs `/chat/completions` vs `:streamGenerateContent`）。
     ///
-    /// 官方供应商（`category == "official"`）base_url 故意留空（走客户端默认/OAuth 端点），
-    /// 没有 cc-switch 能可靠探测的目标——这类供应商的连通检测按钮在前端已隐藏
-    /// （见 `ProviderCard.tsx`），故此处对其提取失败直接报错即可，不做官方端点回退。
+    /// 官方供应商 base_url 故意留空（走客户端默认/OAuth 端点），没有 cc-switch
+    /// 能可靠探测的目标——这类供应商的连通检测按钮在前端已隐藏（见 `ProviderCard.tsx`），
+    /// 故此处对其提取失败直接报错即可，不做官方端点回退。Codex 使用结构化身份，
+    /// 避免 stale category 把第三方 relay 当作官方。
     fn resolve_base_url(app_type: &AppType, provider: &Provider) -> Result<String, AppError> {
-        if provider.category.as_deref() == Some("official") {
+        let is_official = match app_type {
+            AppType::Codex => crate::proxy::providers::is_codex_official_provider(provider),
+            _ => provider.category.as_deref() == Some("official"),
+        };
+        if is_official {
             return Err(AppError::Message(
                 "Official providers do not expose a reachability-check target".to_string(),
             ));

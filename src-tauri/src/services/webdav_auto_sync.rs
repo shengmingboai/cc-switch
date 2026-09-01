@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn should_trigger_sync_for_config_tables_only() {
         assert!(should_trigger_for_table("providers"));
-        assert!(should_trigger_for_table("profiles"));
+        assert!(should_trigger_for_table("mcp_servers"));
         assert!(should_trigger_for_table("settings"));
         assert!(!should_trigger_for_table("proxy_request_logs"));
         assert!(!should_trigger_for_table("provider_health"));

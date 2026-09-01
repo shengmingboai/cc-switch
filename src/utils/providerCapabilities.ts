@@ -33,6 +33,7 @@ function hasExplicitCodexThirdPartyUpstream(
     nonEmptyString(settings.base_url) ||
     Boolean(extractCodexExperimentalBearerToken(config)) ||
     Boolean(extractCodexBaseUrl(config)) ||
+    hasLegacyCodexOpenAiBaseUrl(config) ||
     hasExplicitNonOpenAiCodexModelProvider(config)
   );
 }
@@ -40,6 +41,13 @@ function hasExplicitCodexThirdPartyUpstream(
 function hasStoredCodexApiKey(settings: Record<string, unknown>): boolean {
   const auth = settings.auth as Record<string, unknown> | undefined;
   return nonEmptyString(auth?.OPENAI_API_KEY);
+}
+
+function hasLegacyCodexOpenAiBaseUrl(config: string): boolean {
+  const match = config.match(
+    /^\s*openai_base_url\s*=\s*(["'])(.*?)\1(?:\s*#.*)?$/m,
+  );
+  return nonEmptyString(match?.[2]);
 }
 
 export function resolveCodexOfficialIdentity(
@@ -53,10 +61,6 @@ export function resolveCodexOfficialIdentity(
     "codex_oauth",
   )?.trim();
   const hasFixedOfficialId = provider.id === CODEX_OFFICIAL_PROVIDER_ID;
-  if (hasFixedOfficialId && provider.category === "official") {
-    return managedAccountId ? "managed_account" : "native_login";
-  }
-
   const settings = provider.settingsConfig as Record<string, unknown>;
   const auth = settings?.auth;
   const config = settings?.config;
@@ -117,11 +121,15 @@ export function providerNeedsRouting(
   appId: AppId,
   provider: Provider,
 ): boolean {
+  // Codex uses the structural identity resolver rather than trusting a stale
+  // category label: an official-looking card with a third-party upstream still
+  // needs the same routing warning and auth handling as any other relay.
   if (
-    provider.category === "official" ||
+    (appId !== "codex" && provider.category === "official") ||
     resolveCodexOfficialIdentity(appId, provider)
-  )
+  ) {
     return false;
+  }
 
   const isManagedOAuth = isOAuthProviderType(provider.meta?.providerType);
 

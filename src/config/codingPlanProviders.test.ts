@@ -67,7 +67,6 @@ describe("extractBaseUrlForUsageDetection", () => {
       }),
     ).toBe("https://opencode.ai/zen/go/v1");
   });
-
 });
 
 type TestProvider = {

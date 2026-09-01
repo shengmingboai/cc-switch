@@ -188,12 +188,7 @@ export interface UsageRangeSelection {
  * `opencode` and `pi` have no proxy handler; their usage reaches this
  * dashboard through session importers.
  */
-export type AppType =
-  | "claude"
-  | "codex"
-  | "grokbuild"
-  | "opencode"
-  | "pi";
+export type AppType = "claude" | "codex" | "grokbuild" | "opencode" | "pi";
 
 export type AppTypeFilter = "all" | AppType;
 

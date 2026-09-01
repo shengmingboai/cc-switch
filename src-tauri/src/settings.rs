@@ -371,13 +371,6 @@ pub struct AppSettings {
     /// Whether to show the failover toggle independently on the main page
     #[serde(default)]
     pub enable_failover_toggle: bool,
-    /// Whether to show the project profile switcher on the main page header
-    #[serde(default = "default_show_profile_switcher")]
-    pub show_profile_switcher: bool,
-    /// Keep Codex ChatGPT login material in auth.json when switching to third-party providers.
-    /// Opt-in: defaults to false so third-party switches cleanly overwrite auth.json.
-    #[serde(default)]
-    pub preserve_codex_official_auth_on_switch: bool,
     /// Run official Codex providers under the shared "custom" model_provider id
     /// so official sessions share one resume-history bucket with third-party
     /// providers. Opt-in: defaults to false.
@@ -479,10 +472,6 @@ fn default_minimize_to_tray_on_close() -> bool {
     true
 }
 
-fn default_show_profile_switcher() -> bool {
-    true
-}
-
 fn default_session_auto_sync_enabled() -> bool {
     true
 }
@@ -503,8 +492,6 @@ impl Default for AppSettings {
             usage_dashboard_refresh_interval_ms: None,
             session_auto_sync_enabled: true,
             enable_failover_toggle: false,
-            show_profile_switcher: true,
-            preserve_codex_official_auth_on_switch: false,
             unify_codex_session_history: false,
             unify_codex_migrate_existing: None,
             failover_confirmed: None,
@@ -599,14 +586,51 @@ impl AppSettings {
         }
     }
 
+    /// 已移除功能留下的设置键（camelCase，与 `AppSettings` 的序列化名一致）。
+    /// 随功能下线追加，仅用于清理磁盘上的历史配置。
+    const RETIRED_SETTING_KEYS: &[&str] = &[
+        // 项目档案（Profiles）
+        "showProfileSwitcher",
+        // 第三方切换时保留 Codex 官方登录
+        "preserveCodexOfficialAuthOnSwitch",
+    ];
+
+    /// 移除 `value` 中所有已退役的设置键，返回是否发生变更。
+    fn strip_retired_settings(value: &mut serde_json::Value) -> bool {
+        let Some(object) = value.as_object_mut() else {
+            return false;
+        };
+        Self::RETIRED_SETTING_KEYS
+            .iter()
+            .fold(false, |removed, key| object.remove(*key).is_some() || removed)
+    }
+
     fn load_from_file() -> Self {
         let Some(path) = Self::settings_path() else {
             return Self::default();
         };
         if let Ok(content) = fs::read_to_string(&path) {
-            match serde_json::from_str::<AppSettings>(&content) {
+            let mut value = match serde_json::from_str::<serde_json::Value>(&content) {
+                Ok(value) => value,
+                Err(err) => {
+                    log::warn!(
+                        "解析设置文件失败，将使用默认设置。路径: {}, 错误: {}",
+                        path.display(),
+                        err
+                    );
+                    return Self::default();
+                }
+            };
+            match serde_json::from_value::<AppSettings>(value.clone()) {
                 Ok(mut settings) => {
                     settings.normalize_paths();
+                    // 单向兼容清理：旧版本写入的已移除设置不进入运行时模型，
+                    // 顺带从磁盘剔除，避免过期开关长期残留在用户配置里。
+                    if Self::strip_retired_settings(&mut value) {
+                        if let Err(err) = crate::config::write_json_file(&path, &value) {
+                            log::warn!("清理已移除的设置项失败: {err}");
+                        }
+                    }
                     settings
                 }
                 Err(err) => {
@@ -887,16 +911,6 @@ pub fn get_pi_override_dir() -> Option<PathBuf> {
         .map(|path| resolve_override_path(path))
 }
 
-pub fn preserve_codex_official_auth_on_switch() -> bool {
-    settings_store()
-        .read()
-        .unwrap_or_else(|e| {
-            log::warn!("设置锁已毒化，使用恢复值: {e}");
-            e.into_inner()
-        })
-        .preserve_codex_official_auth_on_switch
-}
-
 pub fn unify_codex_session_history() -> bool {
     settings_store()
         .read()
@@ -1151,5 +1165,42 @@ mod tests {
 
             assert_eq!(settings.language.as_deref(), expected);
         }
+    }
+
+    #[test]
+    fn retired_settings_are_readable_but_never_written_back() {
+        let legacy = serde_json::json!({
+            "showProfileSwitcher": true,
+            "preserveCodexOfficialAuthOnSwitch": true,
+            "language": "zh",
+        });
+
+        let settings: AppSettings = serde_json::from_value(legacy.clone())
+            .expect("legacy settings should remain readable");
+        let serialized = serde_json::to_value(settings).expect("serialize settings");
+        for key in AppSettings::RETIRED_SETTING_KEYS {
+            assert!(
+                serialized.get(*key).is_none(),
+                "retired setting must not be written back: {key}"
+            );
+        }
+
+        let mut on_disk = legacy;
+        assert!(AppSettings::strip_retired_settings(&mut on_disk));
+        for key in AppSettings::RETIRED_SETTING_KEYS {
+            assert!(
+                on_disk.get(*key).is_none(),
+                "retired setting must be stripped from disk: {key}"
+            );
+        }
+        assert_eq!(
+            on_disk.get("language").and_then(|value| value.as_str()),
+            Some("zh"),
+            "cleanup must preserve live settings"
+        );
+        assert!(
+            !AppSettings::strip_retired_settings(&mut on_disk),
+            "cleanup must be a no-op once no retired keys remain"
+        );
     }
 }

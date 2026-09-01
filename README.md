@@ -44,7 +44,6 @@ Modern AI-powered coding relies on tools like Claude Code, Claude Desktop, Codex
 ### Provider Management
 
 - **6 supported tools with built-in presets** — Claude Code, Claude Desktop, Codex, Grok Build, OpenCode, Pi; copy your key and import with one click
-- **Universal providers** — One config syncs to Claude Code and Codex
 - One-click switching, system tray quick access, drag-and-drop sorting, import/export
 
 ### Proxy & Failover
@@ -364,7 +363,6 @@ pnpm test:unit --coverage
 │   │   ├── settings/           # Settings (Terminal/Backup/About)
 │   │   ├── deeplink/           # Deep Link import
 │   │   ├── env/                # Environment variable management
-│   │   ├── universal/          # Cross-app configuration
 │   │   ├── usage/              # Usage statistics
 │   │   └── ui/                 # shadcn/ui component library
 │   ├── hooks/                  # Custom hooks (business logic)

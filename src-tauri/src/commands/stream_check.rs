@@ -27,6 +27,15 @@ pub async fn stream_check_provider(
     let provider = providers
         .get(&provider_id)
         .ok_or_else(|| AppError::Message(format!("供应商 {provider_id} 不存在")))?;
+    let is_official = match &app_type {
+        AppType::Codex => crate::proxy::providers::is_codex_official_auth_provider(provider),
+        _ => provider.category.as_deref() == Some("official"),
+    };
+    if is_official {
+        return Err(AppError::Message(
+            "Official providers do not expose a reachability-check target".to_string(),
+        ));
+    }
 
     // Copilot 端点是动态的（随 OAuth token 解析），需预先取出 host 再探测；
     // 其余供应商传 None，由服务层从 settings_config 提取 base_url。无需鉴权。
@@ -74,8 +83,13 @@ pub async fn stream_check_all_providers(
     for (id, provider) in providers {
         // Official OAuth providers intentionally have no user-configured probe
         // target. Never turn their runtime adapter defaults into unauthenticated
-        // network probes against first-party endpoints.
-        if provider.category.as_deref() == Some("official") {
+        // network probes against first-party endpoints. Codex uses structural
+        // identity so a stale official category does not hide a relay target.
+        let is_official = match &app_type {
+            AppType::Codex => crate::proxy::providers::is_codex_official_auth_provider(&provider),
+            _ => provider.category.as_deref() == Some("official"),
+        };
+        if is_official {
             continue;
         }
         if let Some(ids) = &allowed_ids {

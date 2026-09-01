@@ -691,7 +691,12 @@ pub(crate) fn preflight_codex_live_write_for_state(
         .get("auth")
         .ok_or_else(|| AppError::Config("Codex 供应商配置缺少 'auth' 字段".to_string()))?;
     let config_str = obj.get("config").and_then(|v| v.as_str());
-    crate::codex_config::preflight_codex_live_write(effective.category.as_deref(), auth, config_str)
+    crate::codex_config::preflight_codex_live_write(
+        crate::proxy::providers::is_codex_official_provider(&effective),
+        crate::proxy::providers::is_codex_official_auth_provider(&effective),
+        auth,
+        config_str,
+    )
 }
 
 pub(crate) fn write_live_with_common_config_for_codex_oauth_manager(
@@ -1000,7 +1005,7 @@ fn restore_live_settings_for_provider_backfill(
     let mut settings = live_settings;
     let restore_provider_token =
         crate::codex_config::should_restore_codex_provider_token_for_backfill(
-            provider.category.as_deref(),
+            crate::proxy::providers::is_codex_official_provider(provider),
             &provider.settings_config,
         );
     if let Err(err) = crate::codex_config::restore_codex_settings_for_backfill(
@@ -1027,9 +1032,7 @@ fn restore_live_settings_for_provider_backfill(
 
     // 统一会话开关注入的共享 `custom` 路由只属于 live 配置；切换回填时
     // 必须剥掉，否则官方供应商的存储配置被污染，关闭开关后无法还原。
-    if provider.category.as_deref() == Some("official")
-        || crate::proxy::providers::is_codex_official_provider(provider)
-    {
+    if crate::proxy::providers::is_codex_official_provider(provider) {
         if let Err(err) =
             crate::codex_config::strip_codex_unified_session_bucket_from_settings(&mut settings)
         {
@@ -1205,7 +1208,8 @@ pub(crate) fn write_live_snapshot(app_type: &AppType, provider: &Provider) -> Re
 
             crate::codex_config::write_codex_provider_live_with_catalog(
                 &provider.settings_config,
-                provider.category.as_deref(),
+                crate::proxy::providers::is_codex_official_provider(provider),
+                crate::proxy::providers::is_codex_official_auth_provider(provider),
                 auth,
                 config_str,
                 profile,

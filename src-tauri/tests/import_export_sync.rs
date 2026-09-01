@@ -10,8 +10,7 @@ use cc_switch_lib::{
 #[path = "support.rs"]
 mod support;
 use support::{
-    create_test_state, create_test_state_with_config, enable_codex_official_auth_preservation,
-    ensure_test_home, reset_test_fs, test_mutex,
+    create_test_state, create_test_state_with_config, ensure_test_home, reset_test_fs, test_mutex,
 };
 
 #[test]
@@ -74,7 +73,6 @@ fn sync_claude_provider_writes_live_settings() {
 fn sync_codex_provider_writes_config_without_touching_auth() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
-    enable_codex_official_auth_preservation();
 
     let mut config = MultiAppConfig::default();
 
@@ -234,12 +232,12 @@ requires_openai_auth = true
         "auth": {
             "OPENAI_API_KEY": "fresh-key"
         },
-        "config": r#"model_provider = "aihubmix"
+        "config": r#"model_provider = "relay"
 model = "gpt-5.4"
 
-[model_providers.aihubmix]
-name = "AiHubMix"
-base_url = "https://aihubmix.example/v1"
+[model_providers.relay]
+name = "Relay"
+base_url = "https://relay.example/v1"
 wire_api = "responses"
 requires_openai_auth = true
 "#
@@ -266,7 +264,7 @@ requires_openai_auth = true
 
     assert_eq!(
         parsed.get("model_provider").and_then(|v| v.as_str()),
-        Some("aihubmix"),
+        Some("relay"),
         "ConfigService sync should preserve user-editable model_provider after the one-time migration"
     );
 
@@ -280,10 +278,10 @@ requires_openai_auth = true
     );
     assert_eq!(
         model_providers
-            .get("aihubmix")
+            .get("relay")
             .and_then(|v| v.get("base_url"))
             .and_then(|v| v.as_str()),
-        Some("https://aihubmix.example/v1")
+        Some("https://relay.example/v1")
     );
 
     let synced_cfg = config
@@ -293,7 +291,7 @@ requires_openai_auth = true
         .and_then(|v| v.as_str())
         .expect("synced config string");
     assert!(
-        synced_cfg.contains("[model_providers.aihubmix]"),
+        synced_cfg.contains("[model_providers.relay]"),
         "ConfigService should restore the provider-specific id before writing stored config"
     );
 }

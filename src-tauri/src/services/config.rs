@@ -160,7 +160,8 @@ impl ConfigService {
 
         crate::codex_config::write_codex_provider_live_with_catalog(
             &provider.settings_config,
-            provider.category.as_deref(),
+            crate::proxy::providers::is_codex_official_provider(provider),
+            crate::proxy::providers::is_codex_official_auth_provider(provider),
             auth,
             cfg_text,
             profile,
@@ -179,7 +180,7 @@ impl ConfigService {
                     });
                     let restore_provider_token =
                         crate::codex_config::should_restore_codex_provider_token_for_backfill(
-                            provider.category.as_deref(),
+                            crate::proxy::providers::is_codex_official_provider(provider),
                             &provider.settings_config,
                         );
                     crate::codex_config::restore_codex_settings_for_backfill(

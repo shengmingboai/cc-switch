@@ -47,10 +47,7 @@ export interface ProviderPreset {
   // - "anthropic" (默认): Anthropic Messages API 格式，直接透传
   // - "openai_chat": OpenAI Chat Completions 格式，需要格式转换
   // - "openai_responses": OpenAI Responses API 格式，需要格式转换
-  apiFormat?:
-    | "anthropic"
-    | "openai_chat"
-    | "openai_responses";
+  apiFormat?: "anthropic" | "openai_chat" | "openai_responses";
 
   // 供应商类型标识（用于特殊供应商检测）
   // - "github_copilot": GitHub Copilot 供应商（需要 OAuth 认证）
@@ -124,20 +121,6 @@ export const providerPresets: ProviderPreset[] = [
     category: "cn_official",
     icon: "kimi",
     iconColor: "#6366F1",
-  },
-  // ===== 内置预设：应用内展示按显示名排序，此处文件顺序不影响展示 =====
-  {
-    name: "Amux",
-    websiteUrl: "https://amux.ai",
-    apiKeyUrl: "https://amux.ai",
-    settingsConfig: {
-      env: {
-        ANTHROPIC_BASE_URL: "https://api.amux.ai",
-        ANTHROPIC_AUTH_TOKEN: "",
-      },
-    },
-    category: "aggregator",
-    icon: "amux",
   },
   {
     name: "DeepSeek",
@@ -219,51 +202,6 @@ export const providerPresets: ProviderPreset[] = [
     iconColor: "#0F62FE",
   },
   {
-    name: "Baidu Qianfan Coding Plan",
-    websiteUrl: "https://cloud.baidu.com/product/qianfan_modelbuilder",
-    apiKeyUrl:
-      "https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application",
-    settingsConfig: {
-      env: {
-        ANTHROPIC_BASE_URL: "https://qianfan.baidubce.com/anthropic/coding",
-        ANTHROPIC_AUTH_TOKEN: "",
-        ANTHROPIC_MODEL: "qianfan-code-latest",
-        ANTHROPIC_DEFAULT_HAIKU_MODEL: "qianfan-code-latest",
-        ANTHROPIC_DEFAULT_SONNET_MODEL: "qianfan-code-latest",
-        ANTHROPIC_DEFAULT_OPUS_MODEL: "qianfan-code-latest",
-      },
-    },
-    category: "cn_official",
-    endpointCandidates: ["https://qianfan.baidubce.com/anthropic/coding"],
-    icon: "baidu",
-    iconColor: "#2932E1",
-  },
-  {
-    // Token Plan 个人版：2026-07-13 起替代 Coding Plan 发售（存量 Coding
-    // Plan 可用至到期，旧预设保留）。模型=官方 Claude Code 接入页
-    // （2026-07-30 版）全角色 deepseek-v4-pro；Key 是订阅页专属 Key
-    name: "Baidu Qianfan Token Plan",
-    websiteUrl: "https://cloud.baidu.com/product/codingplan.html",
-    apiKeyUrl: "https://console.bce.baidu.com/qianfan/resource/token-plan",
-    settingsConfig: {
-      env: {
-        ANTHROPIC_BASE_URL:
-          "https://qianfan.baidubce.com/anthropic/tokenplan/personal",
-        ANTHROPIC_AUTH_TOKEN: "",
-        ANTHROPIC_MODEL: "deepseek-v4-pro",
-        ANTHROPIC_DEFAULT_HAIKU_MODEL: "deepseek-v4-pro",
-        ANTHROPIC_DEFAULT_SONNET_MODEL: "deepseek-v4-pro",
-        ANTHROPIC_DEFAULT_OPUS_MODEL: "deepseek-v4-pro",
-      },
-    },
-    category: "cn_official",
-    endpointCandidates: [
-      "https://qianfan.baidubce.com/anthropic/tokenplan/personal",
-    ],
-    icon: "baidu",
-    iconColor: "#2932E1",
-  },
-  {
     name: "Bailian",
     websiteUrl: "https://bailian.console.aliyun.com",
     settingsConfig: {
@@ -329,39 +267,6 @@ export const providerPresets: ProviderPreset[] = [
     category: "cn_official",
     icon: "minimax",
     iconColor: "#FF6B6B",
-  },
-  {
-    name: "BaiLing",
-    websiteUrl: "https://alipaytbox.yuque.com/sxs0ba/ling/get_started",
-    settingsConfig: {
-      env: {
-        ANTHROPIC_BASE_URL: "https://api.tbox.cn/api/anthropic",
-        ANTHROPIC_AUTH_TOKEN: "",
-        ANTHROPIC_MODEL: "Ling-2.5-1T",
-        ANTHROPIC_DEFAULT_HAIKU_MODEL: "Ling-2.5-1T",
-        ANTHROPIC_DEFAULT_SONNET_MODEL: "Ling-2.5-1T",
-        ANTHROPIC_DEFAULT_OPUS_MODEL: "Ling-2.5-1T",
-      },
-    },
-    category: "cn_official",
-  },
-  {
-    name: "AiHubMix",
-    websiteUrl: "https://aihubmix.com",
-    apiKeyUrl: "https://aihubmix.com",
-    // 说明：该供应商使用 ANTHROPIC_API_KEY（而非 ANTHROPIC_AUTH_TOKEN）
-    apiKeyField: "ANTHROPIC_API_KEY",
-    settingsConfig: {
-      env: {
-        ANTHROPIC_BASE_URL: "https://aihubmix.com",
-        ANTHROPIC_API_KEY: "",
-      },
-    },
-    // 请求地址候选（用于地址管理/测速），用户可自行选择/覆盖
-    endpointCandidates: ["https://aihubmix.com", "https://api.aihubmix.com"],
-    category: "aggregator",
-    icon: "aihubmix",
-    iconColor: "#006FFB",
   },
   {
     name: "OpenRouter",

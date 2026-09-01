@@ -9,13 +9,6 @@ export const iconMetadata: Record<string, IconMetadata> = {
     keywords: ["qwen", "tongyi"],
     defaultColor: "#FF6A00",
   },
-  amux: {
-    name: "amux",
-    displayName: "Amux",
-    category: "ai-provider",
-    keywords: ["amux", "amuxapi", "aggregator", "relay", "gateway", "gpt"],
-    defaultColor: "#000000",
-  },
   anthropic: {
     name: "anthropic",
     displayName: "Anthropic",
@@ -36,13 +29,6 @@ export const iconMetadata: Record<string, IconMetadata> = {
     category: "cloud",
     keywords: ["microsoft", "cloud"],
     defaultColor: "#0078D4",
-  },
-  baidu: {
-    name: "baidu",
-    displayName: "Baidu",
-    category: "ai-provider",
-    keywords: ["ernie", "wenxin"],
-    defaultColor: "#2932E1",
   },
   bailian: {
     name: "bailian",
@@ -156,13 +142,6 @@ export const iconMetadata: Record<string, IconMetadata> = {
     keywords: ["huggingface", "hf"],
     defaultColor: "#FFD21E",
   },
-  hunyuan: {
-    name: "hunyuan",
-    displayName: "hunyuan",
-    category: "other",
-    keywords: [],
-    defaultColor: "currentColor",
-  },
   kimi: {
     name: "kimi",
     displayName: "Kimi",
@@ -261,13 +240,6 @@ export const iconMetadata: Record<string, IconMetadata> = {
     keywords: [],
     defaultColor: "currentColor",
   },
-  tencent: {
-    name: "tencent",
-    displayName: "Tencent",
-    category: "ai-provider",
-    keywords: ["hunyuan"],
-    defaultColor: "#00A4FF",
-  },
   vercel: {
     name: "vercel",
     displayName: "vercel",
@@ -323,13 +295,6 @@ export const iconMetadata: Record<string, IconMetadata> = {
     category: "ai-provider",
     keywords: ["lioncc", "lion"],
     defaultColor: "#F9DA3C",
-  },
-  aihubmix: {
-    name: "aihubmix",
-    displayName: "AiHubMix",
-    category: "ai-provider",
-    keywords: ["aihubmix", "hub", "mix", "aggregator"],
-    defaultColor: "#006FFB",
   },
   xiaomimimo: {
     name: "xiaomimimo",

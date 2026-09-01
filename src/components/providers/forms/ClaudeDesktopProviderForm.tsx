@@ -390,16 +390,14 @@ export function ClaudeDesktopProviderForm({
 
   // API Key 获取/邀请链接（与 Claude Code 表单同款，见 ClaudeFormFields）
   const apiKeyLinkCategory = activePreset?.category ?? initialData?.category;
-  const {
-    shouldShowApiKeyLink,
-    websiteUrl: apiKeyLinkWebsiteUrl,
-  } = useApiKeyLink({
-    appId: "claude-desktop",
-    category: apiKeyLinkCategory,
-    selectedPresetId,
-    presetEntries,
-    formWebsiteUrl: form.watch("websiteUrl") || "",
-  });
+  const { shouldShowApiKeyLink, websiteUrl: apiKeyLinkWebsiteUrl } =
+    useApiKeyLink({
+      appId: "claude-desktop",
+      category: apiKeyLinkCategory,
+      selectedPresetId,
+      presetEntries,
+      formWebsiteUrl: form.watch("websiteUrl") || "",
+    });
 
   const applyDesktopPreset = (preset: ClaudeDesktopProviderPreset) => {
     form.setValue("name", preset.nameKey ? t(preset.nameKey) : preset.name);

@@ -9,7 +9,7 @@ describe("Pi provider presets", () => {
   it("owns a broad provider catalog without OpenCode-only templates", () => {
     const names = piProviderPresets.map((preset) => preset.name);
 
-    expect(piProviderPresets.length).toBeGreaterThanOrEqual(15);
+    expect(piProviderPresets.length).toBeGreaterThanOrEqual(10);
     expect(names).toEqual(
       expect.arrayContaining(["Kimi", "DeepSeek", "OpenRouter", "AWS Bedrock"]),
     );
@@ -84,17 +84,6 @@ describe("Pi provider presets", () => {
       "Kimi For Coding": "anthropic-messages",
       "AWS Bedrock": "bedrock-converse-stream",
     });
-  });
-
-  it("uses Pi's 272K context value for every GPT-5.6 Sol preset", () => {
-    const models = piProviderPresets.flatMap((preset) =>
-      preset.settingsConfig.models.filter(
-        (model) => model.id === "gpt-5.6-sol",
-      ),
-    );
-
-    expect(models.length).toBeGreaterThan(0);
-    expect(models.every((model) => model.contextWindow === 272_000)).toBe(true);
   });
 
   it("keeps provider-specific OpenAI compatibility metadata", () => {

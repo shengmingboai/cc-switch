@@ -53,6 +53,13 @@ pub fn official_provider_supports_proxy_takeover(app_type: &AppType, provider: &
         && crate::proxy::providers::is_codex_official_provider(provider)
 }
 
+pub(crate) fn is_official_provider_for_app(app_type: &AppType, provider: &Provider) -> bool {
+    match app_type {
+        AppType::Codex => crate::proxy::providers::is_codex_official_auth_provider(provider),
+        _ => provider.category.as_deref() == Some("official"),
+    }
+}
+
 /// 统一会话开关变更后，立即按新开关状态重写当前官方 Codex 供应商的
 /// live 配置，使开关即时生效（无需等下一次切换）。
 /// 当前供应商非官方（或不存在）时为 no-op：注入只作用于官方配置，
@@ -66,9 +73,7 @@ pub fn reapply_current_codex_official_live(state: &AppState) -> Result<bool, App
     let Some(provider) = providers.get(&current_id) else {
         return Ok(false);
     };
-    if provider.category.as_deref() != Some("official")
-        && !crate::proxy::providers::is_codex_official_provider(provider)
-    {
+    if !is_official_provider_for_app(&AppType::Codex, provider) {
         return Ok(false);
     }
 
@@ -112,10 +117,7 @@ mod tests {
     use crate::claude_desktop_config::PROFILE_ID;
     use crate::config::{get_claude_settings_path, read_json_file, write_json_file};
     use crate::database::Database;
-    use crate::provider::{
-        AuthBinding, AuthBindingSource, ClaudeModelConfig, ProviderMeta, UniversalProvider,
-        UsageScript,
-    };
+    use crate::provider::{AuthBinding, AuthBindingSource, ProviderMeta, UsageScript};
     #[cfg(any(target_os = "macos", windows))]
     use crate::provider::{ClaudeDesktopMode, ClaudeDesktopModelRoute};
     use crate::proxy::types::ProxyConfig;
@@ -654,6 +656,22 @@ mod tests {
     }
 
     #[test]
+    fn codex_official_classification_ignores_stale_category() {
+        let mut provider = Provider::with_id(
+            "misclassified".to_string(),
+            "Misclassified".to_string(),
+            json!({
+                "auth": { "OPENAI_API_KEY": "provider-key" },
+                "config": "model_provider = \"relay\"\n\n[model_providers.relay]\nbase_url = \"https://relay.example/v1\"\n"
+            }),
+            None,
+        );
+        provider.category = Some("official".to_string());
+
+        assert!(!is_official_provider_for_app(&AppType::Codex, &provider));
+    }
+
+    #[test]
     fn validate_provider_settings_rejects_missing_auth() {
         let provider = Provider::with_id(
             "codex".into(),
@@ -798,7 +816,6 @@ mod tests {
             );
         });
     }
-
 
     /// 造一个「已被污染」的现场：片段里带 A 账号的凭据 + 一个合法可共享键。
     #[test]
@@ -3310,61 +3327,6 @@ wire_api = "responses"
             );
         });
     }
-
-    #[test]
-    #[serial]
-    fn sync_universal_to_apps_reprojects_current_child_to_live() {
-        with_test_home(|state, _home| {
-            let mut universal = UniversalProvider::new(
-                "shared".to_string(),
-                "Shared Relay".to_string(),
-                "custom".to_string(),
-                "https://api.new.example".to_string(),
-                "new-key".to_string(),
-            );
-            universal.apps.claude = true;
-            universal.models.claude = Some(ClaudeModelConfig {
-                model: Some("claude-sonnet-4".to_string()),
-                ..Default::default()
-            });
-            state
-                .db
-                .save_universal_provider(&universal)
-                .expect("save universal provider");
-
-            let child = universal
-                .to_claude_provider()
-                .expect("claude child provider");
-            state
-                .db
-                .save_provider("claude", &child)
-                .expect("seed child provider");
-            state
-                .db
-                .set_current_provider("claude", &child.id)
-                .expect("set current child");
-            crate::settings::set_current_provider(&AppType::Claude, Some(&child.id))
-                .expect("set local current child");
-
-            let mut old_live = child.settings_config.clone();
-            old_live["env"]["ANTHROPIC_BASE_URL"] =
-                Value::String("https://api.old.example".to_string());
-            write_json_file(&get_claude_settings_path(), &old_live).expect("seed old live");
-
-            ProviderService::sync_universal_to_apps(state, "shared")
-                .expect("sync universal provider");
-
-            let live: Value = read_json_file(&get_claude_settings_path()).expect("read live");
-            assert_eq!(
-                live["env"]["ANTHROPIC_BASE_URL"].as_str(),
-                Some("https://api.new.example")
-            );
-            assert_eq!(
-                live["env"]["ANTHROPIC_AUTH_TOKEN"].as_str(),
-                Some("new-key")
-            );
-        });
-    }
 }
 
 impl ProviderService {
@@ -3866,7 +3828,8 @@ impl ProviderService {
         Self::normalize_provider_if_claude(&app_type, &mut provider);
         Self::validate_provider_settings(&app_type, &provider)?;
         normalize_provider_common_config_for_storage(state.db.as_ref(), &app_type, &mut provider)?;
-        if matches!(app_type, AppType::Codex) && provider.category.as_deref() == Some("official") {
+        if matches!(app_type, AppType::Codex) && is_official_provider_for_app(&app_type, &provider)
+        {
             crate::codex_config::strip_codex_unified_session_bucket_from_settings(
                 &mut provider.settings_config,
             )?;
@@ -4375,11 +4338,12 @@ impl ProviderService {
             .detect_takeover_in_live_config_for_app(&app_type);
 
         let should_hot_switch = is_app_taken_over || live_taken_over;
+        let target_is_official = is_official_provider_for_app(&app_type, _provider);
 
         // Block switching to unsupported official providers when proxy takeover
         // is active. Codex official account cards use native auth passthrough.
         if should_hot_switch
-            && _provider.category.as_deref() == Some("official")
+            && target_is_official
             && !official_provider_supports_proxy_takeover(&app_type, _provider)
         {
             return Err(AppError::localized(
@@ -4498,6 +4462,8 @@ impl ProviderService {
         }
 
         let target_managed_codex_account_id = Self::managed_codex_oauth_account_id(provider);
+        let target_is_codex_official =
+            crate::proxy::providers::is_codex_official_auth_provider(provider);
         let outgoing_managed_codex_account_id = current_managed_codex_account_id
             .as_ref()
             .filter(|account_id| target_managed_codex_account_id.as_ref() != Some(*account_id))
@@ -4596,8 +4562,7 @@ impl ProviderService {
         // failing the switch here would report a switch that in fact happened.
         if matches!(app_type, AppType::Codex)
             && backfill_completed
-            && (provider.category.as_deref() == Some("official")
-                || crate::proxy::providers::is_codex_official_provider(provider))
+            && target_is_codex_official
             && target_managed_codex_account_id.is_none()
         {
             let db_auth = provider.settings_config.get("auth");
@@ -4612,19 +4577,15 @@ impl ProviderService {
                 Err(e) => log::warn!("Failed to clean stale Codex auth.json: {e}"),
             }
         }
-        // Third-party dual of the block above: with preservation off, the
-        // config-only write is expected to delete auth.json. A deletion
-        // failure (read-only dir, ACL, file lock) must not fail the switch —
-        // config and current are already committed — but the user has to see
-        // that the official login is still on disk, so surface it as a
-        // switch warning instead of only a log line.
+        // A direct third-party switch owns auth.json and removes it after the
+        // config write. A deletion failure (read-only directory, ACL, or file
+        // lock) must not fail the switch because config/current are committed;
+        // surface the leftover login as a warning instead.
         if matches!(app_type, AppType::Codex)
-            && provider.category.as_deref() != Some("official")
-            && !crate::proxy::providers::is_codex_official_provider(provider)
-            && !crate::settings::preserve_codex_official_auth_on_switch()
+            && !target_is_codex_official
             && crate::codex_config::get_codex_auth_path().exists()
         {
-            log::warn!("Codex auth.json still present after a preservation-off third-party switch");
+            log::warn!("Codex auth.json still present after a direct third-party switch");
             result
                 .warnings
                 .push("codex_auth_cleanup_failed".to_string());
@@ -5675,181 +5636,4 @@ pub struct ProviderSortUpdate {
     pub id: String,
     #[serde(rename = "sortIndex")]
     pub sort_index: usize,
-}
-
-// ============================================================================
-// 统一供应商（Universal Provider）服务方法
-// ============================================================================
-
-use crate::provider::UniversalProvider;
-use std::collections::HashMap;
-
-impl ProviderService {
-    /// 获取所有统一供应商
-    pub fn list_universal(
-        state: &AppState,
-    ) -> Result<HashMap<String, UniversalProvider>, AppError> {
-        state.db.get_all_universal_providers()
-    }
-
-    /// 获取单个统一供应商
-    pub fn get_universal(
-        state: &AppState,
-        id: &str,
-    ) -> Result<Option<UniversalProvider>, AppError> {
-        state.db.get_universal_provider(id)
-    }
-
-    /// 添加或更新统一供应商（不自动同步，需手动调用 sync_universal_to_apps）
-    pub fn upsert_universal(
-        state: &AppState,
-        provider: UniversalProvider,
-    ) -> Result<bool, AppError> {
-        // 保存统一供应商
-        state.db.save_universal_provider(&provider)?;
-
-        Ok(true)
-    }
-
-    /// 删除统一供应商
-    pub fn delete_universal(state: &AppState, id: &str) -> Result<bool, AppError> {
-        // 获取统一供应商（用于删除生成的子供应商）
-        let provider = state.db.get_universal_provider(id)?;
-
-        // 删除统一供应商
-        state.db.delete_universal_provider(id)?;
-
-        // 删除生成的子供应商
-        if let Some(p) = provider {
-            if p.apps.claude {
-                let claude_id = format!("universal-claude-{id}");
-                let _ = state.db.delete_provider("claude", &claude_id);
-            }
-            if p.apps.codex {
-                let codex_id = format!("universal-codex-{id}");
-                let _ = state.db.delete_provider("codex", &codex_id);
-            }
-        }
-
-        Ok(true)
-    }
-
-    /// 同步统一供应商到各应用
-    pub fn sync_universal_to_apps(state: &AppState, id: &str) -> Result<bool, AppError> {
-        let provider = state
-            .db
-            .get_universal_provider(id)?
-            .ok_or_else(|| AppError::Message(format!("统一供应商 {id} 不存在")))?;
-
-        // Keep DB and live projections in sync independently per application:
-        // one broken config file must not prevent the other two apps from being
-        // updated, but it must still be reported instead of returning success.
-        let mut live_failures = Vec::new();
-
-        // 同步到 Claude
-        if let Some(mut claude_provider) = provider.to_claude_provider() {
-            // 合并已有配置
-            if let Some(existing) = state.db.get_provider_by_id(&claude_provider.id, "claude")? {
-                let mut merged = existing.settings_config.clone();
-                Self::merge_json(&mut merged, &claude_provider.settings_config);
-                claude_provider.settings_config = merged;
-            }
-            state.db.save_provider("claude", &claude_provider)?;
-            Self::project_universal_child_to_live(
-                state,
-                AppType::Claude,
-                &claude_provider.id,
-                &mut live_failures,
-            );
-        } else {
-            // 如果禁用了 Claude，删除对应的子供应商
-            let claude_id = format!("universal-claude-{id}");
-            let _ = state.db.delete_provider("claude", &claude_id);
-        }
-
-        // 同步到 Codex
-        if let Some(mut codex_provider) = provider.to_codex_provider() {
-            // 合并已有配置
-            if let Some(existing) = state.db.get_provider_by_id(&codex_provider.id, "codex")? {
-                let mut merged = existing.settings_config.clone();
-                Self::merge_json(&mut merged, &codex_provider.settings_config);
-                codex_provider.settings_config = merged;
-            }
-            state.db.save_provider("codex", &codex_provider)?;
-            Self::project_universal_child_to_live(
-                state,
-                AppType::Codex,
-                &codex_provider.id,
-                &mut live_failures,
-            );
-        } else {
-            let codex_id = format!("universal-codex-{id}");
-            let _ = state.db.delete_provider("codex", &codex_id);
-        }
-
-        if live_failures.is_empty() {
-            Ok(true)
-        } else {
-            Err(AppError::Message(format!(
-                "统一供应商已保存到数据库，但以下应用的配置文件未能写入，仍是旧内容：{}。请重试同步，或切换一次该应用的供应商。",
-                live_failures.join("、")
-            )))
-        }
-    }
-
-    /// Re-project a generated universal child only when it is the effective
-    /// current provider for that app. Failures are collected by the caller so
-    /// the other applications can continue syncing.
-    fn project_universal_child_to_live(
-        state: &AppState,
-        app_type: AppType,
-        child_id: &str,
-        failures: &mut Vec<String>,
-    ) {
-        let is_current = match crate::settings::get_effective_current_provider(&state.db, &app_type)
-        {
-            Ok(current) => current.as_deref() == Some(child_id),
-            Err(err) => {
-                log::warn!(
-                    "读取 {} 当前供应商失败，跳过统一供应商的 live 重投影: {err}",
-                    app_type.as_str()
-                );
-                failures.push(app_type.as_str().to_string());
-                return;
-            }
-        };
-        if !is_current {
-            return;
-        }
-
-        if let Err(err) = Self::sync_current_provider_for_app(state, app_type.clone()) {
-            log::warn!(
-                "统一供应商同步后重写 {} live 配置失败: {err}",
-                app_type.as_str()
-            );
-            failures.push(app_type.as_str().to_string());
-        }
-    }
-
-    /// 递归合并 JSON：base 为底，patch 覆盖同名字段
-    fn merge_json(base: &mut serde_json::Value, patch: &serde_json::Value) {
-        use serde_json::Value;
-
-        match (base, patch) {
-            (Value::Object(base_map), Value::Object(patch_map)) => {
-                for (k, v_patch) in patch_map {
-                    match base_map.get_mut(k) {
-                        Some(v_base) => Self::merge_json(v_base, v_patch),
-                        None => {
-                            base_map.insert(k.clone(), v_patch.clone());
-                        }
-                    }
-                }
-            }
-            // 其它类型：直接覆盖
-            (base_val, patch_val) => {
-                *base_val = patch_val.clone();
-            }
-        }
-    }
 }

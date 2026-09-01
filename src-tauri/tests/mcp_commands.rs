@@ -1018,7 +1018,7 @@ fn custom_claude_dir_sync_does_not_copy_default_profile() {
 }
 
 #[test]
-fn custom_claude_dir_read_only_mcp_queries_do_not_create_profile() {
+fn custom_claude_dir_read_only_mcp_queries_do_not_persist_state() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
     let home = ensure_test_home();

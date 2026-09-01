@@ -110,7 +110,7 @@ describe("providerNeedsRouting", () => {
       settingsConfig: {
         auth: {},
         config:
-          'model_provider = "custom"\n[model_providers.custom]\nbase_url = "https://example.com/v1"',
+          'model_provider = "custom"\n[model_providers.custom]\nbase_url = "https://example.com/v1"\nwire_api = "chat_completions"',
       },
     });
     const implicitCustom = mkProvider({
@@ -129,9 +129,28 @@ describe("providerNeedsRouting", () => {
     expect(resolveCodexOfficialIdentity("codex", explicitOpenAi)).toBe(
       "api_key",
     );
+    const fixedLegacyReroute = mkProvider({
+      id: "codex-official",
+      category: "official",
+      settingsConfig: {
+        auth: {
+          auth_mode: "chatgpt",
+          tokens: { access_token: "oauth-token" },
+        },
+        config:
+          'model_provider = "openai"\nopenai_base_url = "https://relay.example/v1"',
+      },
+    });
+    expect(
+      resolveCodexOfficialIdentity("codex", fixedLegacyReroute),
+    ).toBeNull();
     expect(resolveCodexOfficialIdentity("codex", grokOfficial)).toBeNull();
     expect(resolveCodexOfficialIdentity("codex", unmarkedCustom)).toBeNull();
     expect(resolveCodexOfficialIdentity("codex", implicitCustom)).toBeNull();
+    expect(
+      providerNeedsRouting("codex", unmarkedCustom),
+      "stale official categories must not hide a routed third-party config",
+    ).toBe(true);
 
     const unifiedSession = mkProvider({
       id: "unified-session",
@@ -189,7 +208,7 @@ describe("providerNeedsRouting", () => {
   });
 
   it("官方供应商一律不需要路由（即便 providerType 是 OAuth）", () => {
-    const apps: AppId[] = ["claude", "codex", "claude-desktop"];
+    const apps: AppId[] = ["claude", "claude-desktop"];
     for (const app of apps) {
       expect(
         providerNeedsRouting(

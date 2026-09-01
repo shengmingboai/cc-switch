@@ -13,66 +13,6 @@ struct LegacySkillMigrationRow {
     app_type: String,
 }
 
-fn remove_legacy_app_slots(value: &mut serde_json::Value, removed_apps: &[&str]) -> bool {
-    let mut changed = false;
-    for section_name in ["providers", "mcp", "skills", "prompts"] {
-        if let Some(section) = value
-            .get_mut(section_name)
-            .and_then(|section| section.as_object_mut())
-        {
-            for app in removed_apps {
-                changed |= section.remove(*app).is_some();
-            }
-        }
-    }
-    changed
-}
-
-fn remove_legacy_universal_provider_slots(
-    value: &mut serde_json::Value,
-    removed_apps: &[&str],
-) -> bool {
-    let Some(providers) = value.as_object_mut() else {
-        return false;
-    };
-
-    let mut changed = false;
-    for provider in providers.values_mut() {
-        let Some(provider) = provider.as_object_mut() else {
-            continue;
-        };
-        for section_name in ["apps", "models"] {
-            if let Some(section) = provider
-                .get_mut(section_name)
-                .and_then(|section| section.as_object_mut())
-            {
-                for app in removed_apps {
-                    changed |= section.remove(*app).is_some();
-                }
-            }
-        }
-    }
-    changed
-}
-
-fn remove_legacy_provider_ids_from_profile(
-    value: &mut serde_json::Value,
-    app: &str,
-    provider_ids: &[String],
-) -> bool {
-    let Some(providers) = value.get_mut("providers").and_then(|value| value.as_object_mut())
-    else {
-        return false;
-    };
-    let Some(provider_id) = providers.get(app).and_then(|value| value.as_str()) else {
-        return false;
-    };
-    if !provider_ids.iter().any(|id| id == provider_id) {
-        return false;
-    }
-    providers.remove(app).is_some()
-}
-
 fn remove_legacy_partner_metadata(value: &mut serde_json::Value) -> bool {
     match value {
         serde_json::Value::Object(object) => {
@@ -92,7 +32,13 @@ fn remove_legacy_partner_metadata(value: &mut serde_json::Value) -> bool {
             }
             changed
         }
-        serde_json::Value::Array(items) => items.iter_mut().any(remove_legacy_partner_metadata),
+        serde_json::Value::Array(items) => {
+            let mut changed = false;
+            for item in items {
+                changed |= remove_legacy_partner_metadata(item);
+            }
+            changed
+        }
         _ => false,
     }
 }
@@ -408,35 +354,6 @@ impl Database {
         )
         .map_err(|e| AppError::Database(e.to_string()))?;
 
-        // 19. Profiles 表（全应用共享的项目实体，payload 按 app 分槽快照
-        //     供应商/MCP/Skills/Prompt；各应用分组的 current 标记在 settings 表）
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS profiles (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                payload TEXT NOT NULL,
-                sort_order INTEGER,
-                created_at INTEGER,
-                updated_at INTEGER
-            )",
-            [],
-        )
-        .map_err(|e| AppError::Database(e.to_string()))?;
-
-        // 修复跑过未发布开发版的库：current 标记曾是全局 key，现按应用分组
-        // （随 v12 定稿为 current_profile_id_<scope>，不单独 bump 版本）
-        if conn
-            .execute(
-                "INSERT OR REPLACE INTO settings (key, value)
-                 SELECT 'current_profile_id_claude', value FROM settings
-                 WHERE key = 'current_profile_id'",
-                [],
-            )
-            .is_ok()
-        {
-            let _ = conn.execute("DELETE FROM settings WHERE key = 'current_profile_id'", []);
-        }
-
         // 尝试添加 live_takeover_active 列到 proxy_config 表
         let _ = conn.execute(
             "ALTER TABLE proxy_config ADD COLUMN live_takeover_active INTEGER NOT NULL DEFAULT 0",
@@ -587,7 +504,7 @@ impl Database {
                         Self::set_user_version(conn, 11)?;
                     }
                     11 => {
-                        log::info!("迁移数据库从 v11 到 v12（添加项目 Profiles 表）");
+                        log::info!("迁移数据库从 v11 到 v12（空操作，原 Profiles 表已移除）");
                         Self::migrate_v11_to_v12(conn)?;
                         Self::set_user_version(conn, 12)?;
                     }
@@ -635,6 +552,16 @@ impl Database {
                         log::info!("迁移数据库从 v20 到 v21（移除供应商推广元数据）");
                         Self::migrate_v20_to_v21(conn)?;
                         Self::set_user_version(conn, 21)?;
+                    }
+                    21 => {
+                        log::info!("迁移数据库从 v21 到 v22（移除统一供应商遗留状态）");
+                        Self::migrate_v21_to_v22(conn)?;
+                        Self::set_user_version(conn, 22)?;
+                    }
+                    22 => {
+                        log::info!("迁移数据库从 v22 到 v23（移除项目 Profiles）");
+                        Self::migrate_v22_to_v23(conn)?;
+                        Self::set_user_version(conn, 23)?;
                     }
                     _ => {
                         return Err(AppError::Database(format!(
@@ -1467,21 +1394,8 @@ impl Database {
         Ok(())
     }
 
-    /// v11 -> v12 迁移：添加项目 Profiles 表
-    /// 与 create_tables_on_conn 中的建表语句保持一致（IF NOT EXISTS 保证幂等）
-    fn migrate_v11_to_v12(conn: &Connection) -> Result<(), AppError> {
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS profiles (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                payload TEXT NOT NULL,
-                sort_order INTEGER,
-                created_at INTEGER,
-                updated_at INTEGER
-            )",
-            [],
-        )
-        .map_err(|e| AppError::Database(format!("v11 -> v12 创建 profiles 表失败: {e}")))?;
+    /// v11 -> v12 迁移：原为添加 Profiles 表（已废弃），现为空操作保持版本链完整
+    fn migrate_v11_to_v12(_conn: &Connection) -> Result<(), AppError> {
         Ok(())
     }
 
@@ -1721,34 +1635,7 @@ impl Database {
             }
         }
 
-        // 3. Profiles payload 中按应用分槽的配置。
-        let profiles: Vec<(String, String)> = if Self::table_exists(conn, "profiles")? {
-            conn
-                .prepare("SELECT id, payload FROM profiles")?
-            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| AppError::Database(e.to_string()))?
-        } else {
-            Vec::new()
-        };
-
-        for (profile_id, config_json) in profiles {
-            if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&config_json) {
-                let changed = remove_legacy_app_slots(&mut value, &removed_apps);
-
-                if changed {
-                    let updated = serde_json::to_string(&value)
-                        .map_err(|e| AppError::Database(e.to_string()))?;
-                    conn.execute(
-                        "UPDATE profiles SET payload = ?1 WHERE id = ?2",
-                        params![updated, profile_id],
-                    )
-                    .map_err(|e| AppError::Database(e.to_string()))?;
-                }
-            }
-        }
-
-        // 4. mcp_servers 的 enabled_hermes 列只影响 Hermes 启用状态，汇总按
+        // 3. mcp_servers 的 enabled_hermes 列只影响 Hermes 启用状态，汇总按
         //    不同客户端维度存储，直接将该列更新为 0（Hermes 不再可用）。
         if Self::has_column(conn, "mcp_servers", "enabled_hermes")? {
             conn.execute(
@@ -1758,7 +1645,7 @@ impl Database {
             .map_err(|e| AppError::Database(e.to_string()))?;
         }
 
-        // 5. skills 元数据同步收尾（enabled_hermes 列）
+        // 4. skills 元数据同步收尾（enabled_hermes 列）
         if Self::has_column(conn, "skills", "enabled_hermes")? {
             conn.execute(
                 "UPDATE skills SET enabled_hermes = 0 WHERE enabled_hermes != 0",
@@ -1767,7 +1654,7 @@ impl Database {
             .map_err(|e| AppError::Database(e.to_string()))?;
         }
 
-        // 6. 清理附属与用量记录中按 app_type 归属的行。旧版测试库中
+        // 5. 清理附属与用量记录中按 app_type 归属的行。旧版测试库中
         //    缺失的表或列会由下面的守卫跳过。
         for table in [
             "proxy_request_logs",
@@ -1859,7 +1746,7 @@ impl Database {
     /// Gemini 会话用量以及模型定价，避免旧配置在新版本中重新出现。
     fn migrate_v19_to_v20(conn: &Connection) -> Result<(), AppError> {
         // Gemini Native 旧版作为 Claude 供应商保存，不能仅按 app_type 清理。
-        // 先记录这些供应商 ID，稍后同步清理其子表、用量和 Profile 引用。
+        // 先记录这些供应商 ID，稍后同步清理其子表与用量记录。
         let legacy_claude_provider_ids: Vec<String> =
             if Self::table_exists(conn, "providers")?
                 && Self::has_column(conn, "providers", "app_type")?
@@ -1928,62 +1815,6 @@ impl Database {
                         params![provider_id],
                     )
                     .map_err(|e| AppError::Database(e.to_string()))?;
-                }
-            }
-        }
-
-        let profiles: Vec<(String, String)> = if Self::table_exists(conn, "profiles")? {
-            conn
-                .prepare("SELECT id, payload FROM profiles")?
-            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| AppError::Database(e.to_string()))?
-        } else {
-            Vec::new()
-        };
-
-        for (profile_id, config_json) in profiles {
-            if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&config_json) {
-                let mut changed = remove_legacy_app_slots(&mut value, &["gemini"]);
-                changed |= remove_legacy_provider_ids_from_profile(
-                    &mut value,
-                    "claude",
-                    &legacy_claude_provider_ids,
-                );
-
-                if changed {
-                    let updated = serde_json::to_string(&value)
-                        .map_err(|e| AppError::Database(e.to_string()))?;
-                    conn.execute(
-                        "UPDATE profiles SET payload = ?1 WHERE id = ?2",
-                        params![updated, profile_id],
-                    )
-                    .map_err(|e| AppError::Database(e.to_string()))?;
-                }
-            }
-        }
-
-        if Self::table_exists(conn, "settings")? {
-            let universal_json = conn
-                .query_row(
-                    "SELECT value FROM settings WHERE key = ?1",
-                    params!["universal_providers"],
-                    |row| row.get::<_, Option<String>>(0),
-                )
-                .optional()?
-                .flatten();
-
-            if let Some(universal_json) = universal_json {
-                if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&universal_json) {
-                    if remove_legacy_universal_provider_slots(&mut value, &["gemini"]) {
-                        let updated = serde_json::to_string(&value)
-                            .map_err(|e| AppError::Database(e.to_string()))?;
-                        conn.execute(
-                            "UPDATE settings SET value = ?1 WHERE key = 'universal_providers'",
-                            params![updated],
-                        )
-                        .map_err(|e| AppError::Database(e.to_string()))?;
-                    }
                 }
             }
         }
@@ -2092,8 +1923,8 @@ impl Database {
 
     /// v20 -> v21: 清理已移除的供应商推广元数据
     ///
-    /// 旧版本可能在 provider、Profile 或统一供应商快照中保存合作伙伴展示字段。
-    /// 这些字段不再属于数据模型，升级时只移除元数据，不删除用户的供应商配置。
+    /// 旧版本可能在 provider meta 中保存合作伙伴展示字段。这些字段不再属于
+    /// 数据模型，升级时只移除元数据，不删除用户的供应商配置。
     fn migrate_v20_to_v21(conn: &Connection) -> Result<(), AppError> {
         if Self::table_exists(conn, "providers")?
             && Self::has_column(conn, "providers", "id")?
@@ -2123,58 +1954,317 @@ impl Database {
             }
         }
 
-        if Self::table_exists(conn, "profiles")?
-            && Self::has_column(conn, "profiles", "id")?
-            && Self::has_column(conn, "profiles", "payload")?
-        {
-            let profiles: Vec<(String, String)> = conn
-                .prepare("SELECT id, payload FROM profiles")?
-                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| AppError::Database(e.to_string()))?;
+        Ok(())
+    }
 
-            for (profile_id, payload_json) in profiles {
-                let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&payload_json) else {
-                    continue;
-                };
-                if !remove_legacy_partner_metadata(&mut value) {
-                    continue;
-                }
-                let updated =
-                    serde_json::to_string(&value).map_err(|e| AppError::Database(e.to_string()))?;
-                conn.execute(
-                    "UPDATE profiles SET payload = ?1 WHERE id = ?2",
-                    params![updated, profile_id],
-                )
-                .map_err(|e| AppError::Database(e.to_string()))?;
+    /// 将一个已废弃的共享供应商记录投影为缺失的 app-scoped provider 行。
+    ///
+    /// 这是一次性迁移适配器，不是运行时模型：投影完成后原始记录只保留在
+    /// opaque archive 中，后续运行时不会再读取该 archive。使用 INSERT OR IGNORE
+    /// 保留已经由旧版本同步成功的子供应商及其用户修改。
+    fn project_retired_shared_provider_records(
+        conn: &Connection,
+        payload: &str,
+    ) -> Result<usize, AppError> {
+        use serde_json::{Map, Value};
+
+        let records: Map<String, Value> = match serde_json::from_str(payload) {
+            Ok(records) => records,
+            Err(error) => {
+                log::warn!("无法解析已废弃的共享供应商状态，保留原文归档: {error}");
+                return Ok(0);
             }
-        }
+        };
 
-        if Self::table_exists(conn, "settings")? {
-            let universal_json: Option<String> = conn
-                .query_row(
-                    "SELECT value FROM settings WHERE key = ?1",
-                    params!["universal_providers"],
-                    |row| row.get(0),
-                )
-                .optional()
-                .map_err(|e| AppError::Database(e.to_string()))?
-                .flatten();
+        let mut projected = 0;
+        for (map_id, raw_record) in records {
+            let Some(record) = raw_record.as_object() else {
+                log::warn!("跳过格式无效的已废弃共享供应商记录 '{map_id}'");
+                continue;
+            };
+            let text_field = |key: &str| {
+                record
+                    .get(key)
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_string)
+            };
+            let provider_id = text_field("id").unwrap_or(map_id);
+            let Some(base_url) = text_field("baseUrl") else {
+                log::warn!("跳过已废弃共享供应商 '{provider_id}'：缺少 baseUrl");
+                continue;
+            };
+            let Some(api_key) = text_field("apiKey") else {
+                log::warn!("跳过已废弃共享供应商 '{provider_id}'：缺少 apiKey");
+                continue;
+            };
+            let name = text_field("name").unwrap_or_else(|| provider_id.clone());
+            let apps = record.get("apps");
+            let is_enabled = |app: &str| {
+                apps.and_then(|apps| apps.get(app))
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+            };
+            let models = record.get("models");
+            let model_field = |app: &str, key: &str, default: &str| {
+                models
+                    .and_then(|models| models.get(app))
+                    .and_then(|model| model.get(key))
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .unwrap_or(default)
+                    .to_string()
+            };
+            let meta_json = record
+                .get("meta")
+                .filter(|meta| meta.is_object())
+                .map(serde_json::to_string)
+                .transpose()
+                .map_err(|error| AppError::Database(error.to_string()))?
+                .unwrap_or_else(|| "{}".to_string());
+            let website_url = text_field("websiteUrl");
+            let notes = text_field("notes");
+            let icon = text_field("icon");
+            let icon_color = text_field("iconColor");
+            let created_at = record.get("createdAt").and_then(Value::as_i64);
+            let sort_index = record
+                .get("sortIndex")
+                .and_then(Value::as_u64)
+                .and_then(|value| i64::try_from(value).ok());
 
-            if let Some(universal_json) = universal_json {
-                if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&universal_json) {
-                    if remove_legacy_partner_metadata(&mut value) {
-                        let updated = serde_json::to_string(&value)
-                            .map_err(|e| AppError::Database(e.to_string()))?;
-                        conn.execute(
-                            "UPDATE settings SET value = ?1 WHERE key = ?2",
-                            params![updated, "universal_providers"],
-                        )
-                        .map_err(|e| AppError::Database(e.to_string()))?;
+            let insert_provider = |app_type: &str,
+                                       child_id: &str,
+                                       settings_config: &Value|
+             -> Result<bool, AppError> {
+                let settings_json = serde_json::to_string(settings_config)
+                    .map_err(|error| AppError::Database(error.to_string()))?;
+                let inserted = conn
+                    .execute(
+                        "INSERT OR IGNORE INTO providers (
+                            id, app_type, name, settings_config, website_url, category,
+                            created_at, sort_index, notes, icon, icon_color, meta,
+                            is_current, in_failover_queue
+                        ) VALUES (?1, ?2, ?3, ?4, ?5, 'aggregator', ?6, ?7, ?8, ?9, ?10, ?11, 0, 0)",
+                        params![
+                            child_id,
+                            app_type,
+                            name.as_str(),
+                            settings_json,
+                            website_url.as_deref(),
+                            created_at,
+                            sort_index,
+                            notes.as_deref(),
+                            icon.as_deref(),
+                            icon_color.as_deref(),
+                            meta_json.as_str(),
+                        ],
+                    )
+                    .map_err(|error| AppError::Database(error.to_string()))?;
+                if inserted > 0 {
+                    let endpoints = record
+                        .get("meta")
+                        .and_then(|meta| {
+                            meta.get("custom_endpoints")
+                                .or_else(|| meta.get("customEndpoints"))
+                        })
+                        .and_then(Value::as_object);
+                    if let Some(endpoints) = endpoints {
+                        for (url_key, endpoint) in endpoints {
+                            let endpoint_url = endpoint
+                                .get("url")
+                                .and_then(Value::as_str)
+                                .map(str::trim)
+                                .filter(|url| !url.is_empty())
+                                .unwrap_or(url_key.as_str());
+                            if endpoint_url.is_empty() {
+                                continue;
+                            }
+                            let added_at = endpoint
+                                .get("addedAt")
+                                .or_else(|| endpoint.get("added_at"))
+                                .and_then(Value::as_i64);
+                            conn.execute(
+                                "INSERT OR IGNORE INTO provider_endpoints
+                                 (provider_id, app_type, url, added_at)
+                                 VALUES (?1, ?2, ?3, ?4)",
+                                params![child_id, app_type, endpoint_url, added_at],
+                            )
+                            .map_err(|error| AppError::Database(error.to_string()))?;
+                        }
                     }
                 }
+                Ok(inserted > 0)
+            };
+
+            if is_enabled("claude") {
+                let model = model_field("claude", "model", "claude-sonnet-4-20250514");
+                let haiku = model_field("claude", "haikuModel", &model);
+                let sonnet = model_field("claude", "sonnetModel", &model);
+                let opus = model_field("claude", "opusModel", &model);
+                let settings = serde_json::json!({
+                    "env": {
+                        "ANTHROPIC_BASE_URL": base_url,
+                        "ANTHROPIC_AUTH_TOKEN": api_key,
+                        "ANTHROPIC_MODEL": model,
+                        "ANTHROPIC_DEFAULT_HAIKU_MODEL": haiku,
+                        "ANTHROPIC_DEFAULT_SONNET_MODEL": sonnet,
+                        "ANTHROPIC_DEFAULT_OPUS_MODEL": opus,
+                    }
+                });
+                let child_id = format!("universal-claude-{provider_id}");
+                if insert_provider("claude", &child_id, &settings)? {
+                    projected += 1;
+                }
+            }
+
+            if is_enabled("codex") {
+                let model = model_field("codex", "model", "gpt-4o");
+                let reasoning_effort = model_field("codex", "reasoningEffort", "high");
+                let base_trimmed = base_url.trim_end_matches('/');
+                let origin_only = match base_trimmed.split_once("://") {
+                    Some((_scheme, rest)) => !rest.contains('/'),
+                    None => !base_trimmed.contains('/'),
+                };
+                let codex_base_url = if base_trimmed.ends_with("/v1") {
+                    base_trimmed.to_string()
+                } else if origin_only {
+                    format!("{base_trimmed}/v1")
+                } else {
+                    base_trimmed.to_string()
+                };
+                let quote_toml = |value: &str| toml_edit::Value::from(value).to_string();
+                let config = format!(
+                    r#"model_provider = "custom"
+model = {}
+model_reasoning_effort = {}
+disable_response_storage = true
+
+[model_providers.custom]
+name = {}
+base_url = {}
+wire_api = "responses"
+requires_openai_auth = true"#,
+                    quote_toml(&model),
+                    quote_toml(&reasoning_effort),
+                    quote_toml(&name),
+                    quote_toml(&codex_base_url),
+                );
+                let settings = serde_json::json!({
+                    "auth": { "OPENAI_API_KEY": api_key },
+                    "config": config,
+                });
+                let child_id = format!("universal-codex-{provider_id}");
+                if insert_provider("codex", &child_id, &settings)? {
+                    projected += 1;
+                }
             }
         }
+
+        Ok(projected)
+    }
+
+    /// v21 -> v22：归档并迁移统一供应商遗留状态。
+    ///
+    /// 统一供应商已经不再是运行时数据模型；旧版本将其序列化在
+    /// `settings.universal_providers` 中。先把仍启用的 app 投影为普通
+    /// app-scoped provider，避免升级丢失尚未同步的 API Key/config；然后将
+    /// 原始记录改名为 opaque legacy archive，后续运行时不会读取该 archive。
+    fn migrate_v21_to_v22(conn: &Connection) -> Result<(), AppError> {
+        if !Self::table_exists(conn, "settings")? {
+            return Ok(());
+        }
+
+        let legacy_payload: Option<String> = conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'universal_providers'",
+                [],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|error| AppError::Database(format!("读取统一供应商遗留状态失败: {error}")))?;
+        if let Some(payload) = legacy_payload.as_deref() {
+            if Self::table_exists(conn, "providers")? {
+                let projected = Self::project_retired_shared_provider_records(conn, payload)?;
+                if projected > 0 {
+                    log::info!("已迁移 {projected} 个统一供应商 app-scoped 配置");
+                }
+            }
+        }
+
+        let archived = conn
+            .execute(
+                "INSERT OR REPLACE INTO settings (key, value)
+                 SELECT 'legacy_universal_providers', value
+                 FROM settings WHERE key = 'universal_providers'",
+                [],
+            )
+            .map_err(|e| AppError::Database(format!("归档统一供应商遗留状态失败: {e}")))?;
+        let removed = conn
+            .execute("DELETE FROM settings WHERE key = 'universal_providers'", [])
+            .map_err(|e| AppError::Database(format!("清理统一供应商遗留状态失败: {e}")))?;
+
+        if archived > 0 || removed > 0 {
+            log::info!("已将统一供应商遗留状态归档为 legacy_universal_providers");
+        }
+
+        Ok(())
+    }
+
+    /// v22 -> v23: 移除项目 Profiles 功能
+    ///
+    /// Profile 只是"供应商 / MCP / Skills / Prompt 当前状态"的快照，各条目的
+    /// SSOT 都在自己的表里，因此丢弃快照不影响任何现存配置——用户当前生效的
+    /// 配置保持原样，只是不能再一键切回历史组合。
+    ///
+    /// 快照 payload 归档进 settings（`legacy_profiles`，与 v21 -> v22 的
+    /// `legacy_universal_providers` 同一约定），便于用户回退旧版本或人工排查；
+    /// 运行时不再读取。历史的项目选择标记一并删除。
+    fn migrate_v22_to_v23(conn: &Connection) -> Result<(), AppError> {
+        if !Self::table_exists(conn, "settings")? {
+            return Ok(());
+        }
+
+        if Self::table_exists(conn, "profiles")? {
+            let rows: Vec<(String, String, String)> = conn
+                .prepare("SELECT id, name, payload FROM profiles")?
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| AppError::Database(format!("读取项目快照失败: {e}")))?;
+
+            // 只在确实存在快照时写归档，避免给空库塞一条无意义的 `[]`
+            if !rows.is_empty() {
+                let count = rows.len();
+                let archive: Vec<serde_json::Value> = rows
+                    .into_iter()
+                    .map(|(id, name, payload)| {
+                        // payload 原样保留为字符串：归档是死数据，不必保证可解析
+                        serde_json::json!({ "id": id, "name": name, "payload": payload })
+                    })
+                    .collect();
+                let archive_json = serde_json::to_string(&archive)
+                    .map_err(|e| AppError::Database(format!("序列化项目快照失败: {e}")))?;
+                conn.execute(
+                    "INSERT OR REPLACE INTO settings (key, value) VALUES ('legacy_profiles', ?1)",
+                    params![archive_json],
+                )
+                .map_err(|e| AppError::Database(format!("归档项目快照失败: {e}")))?;
+                log::info!("已将 {count} 个项目快照归档为 legacy_profiles");
+            }
+
+            conn.execute("DROP TABLE profiles", [])
+                .map_err(|e| AppError::Database(format!("删除 profiles 表失败: {e}")))?;
+        }
+
+        // 清理 current 标记：scope 化 key 与更早的全局 key
+        conn.execute(
+            "DELETE FROM settings
+             WHERE key = 'current_profile_id'
+                OR key LIKE 'current_profile_id_%'",
+            [],
+        )
+        .map_err(|e| AppError::Database(format!("清理当前项目标记失败: {e}")))?;
 
         Ok(())
     }
@@ -2744,7 +2834,7 @@ impl Database {
             ("kimi-k3", "Kimi K3", "3.00", "15.00", "0.30", "0"),
             // Kimi For Coding 套餐里 K3 的裸名（无 kimi- 前缀），同标准 list 价
             ("k3", "Kimi K3", "3.00", "15.00", "0.30", "0"),
-            // 腾讯混元 (Tencent Hunyuan)（官方 CNY 1/4/0.25 按 1 USD ≈ 7.14 折算；Hy3 阶梯计价取最低档）
+            // Hy3 模型（保留通用模型定价，供自定义供应商继续使用）
             ("hunyuan-hy3", "Hunyuan Hy3", "0.14", "0.56", "0.035", "0"),
             ("hy3", "Hunyuan Hy3", "0.14", "0.56", "0.035", "0"),
             // MiniMax 系列
@@ -3999,6 +4089,15 @@ mod tests {
                 ('gemini-2.5-pro', 'Gemini', '1', '2'),
                 ('google/gemini-2.5-flash', 'Gemini Flash', '1', '2'),
                 ('claude-sonnet', 'Claude', '1', '2');
+            -- v18 库仍带 profiles 表（v23 才移除），这里显式建出以覆盖整条迁移链
+            CREATE TABLE profiles (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                sort_order INTEGER,
+                created_at INTEGER,
+                updated_at INTEGER
+            );
             INSERT INTO profiles (id, name, payload) VALUES
                 ('profile-1', 'Legacy',
                  '{"providers":{"gemini":{"id":"g"},"openclaw":{"id":"o"},"claude":"claude-gemini-native","codex":"c"}}');
@@ -4060,28 +4159,27 @@ mod tests {
         )?;
         assert_eq!(pricing_count, 0);
 
-        let profile_payload: String = conn.query_row(
-            "SELECT payload FROM profiles WHERE id = 'profile-1'",
+        // 迁移链末端（v23）已移除项目功能：表被丢弃，快照归档为死数据
+        assert!(!Database::table_exists(&conn, "profiles")?);
+        let profile_archive_count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM settings WHERE key = 'legacy_profiles'",
             [],
             |row| row.get(0),
         )?;
-        let profile: serde_json::Value = serde_json::from_str(&profile_payload)
-            .expect("parse cleaned profile payload");
-        assert!(profile["providers"].get("gemini").is_none());
-        assert!(profile["providers"].get("openclaw").is_none());
-        assert!(profile["providers"].get("claude").is_none());
-        assert!(profile["providers"].get("codex").is_some());
+        assert_eq!(profile_archive_count, 1, "profile snapshots must be archived");
 
-        let universal_payload: String = conn.query_row(
-            "SELECT value FROM settings WHERE key = 'universal_providers'",
+        let universal_count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM settings WHERE key = 'universal_providers'",
             [],
             |row| row.get(0),
         )?;
-        let universal: serde_json::Value = serde_json::from_str(&universal_payload)
-            .expect("parse cleaned universal providers");
-        assert!(universal["u1"]["apps"].get("gemini").is_none());
-        assert!(universal["u1"]["models"].get("gemini").is_none());
-        assert!(universal["u1"]["apps"].get("claude").is_some());
+        let archived_count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM settings WHERE key = 'legacy_universal_providers'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(universal_count, 0, "legacy universal provider key remains");
+        assert_eq!(archived_count, 1, "legacy universal provider data must be archived");
 
         Ok(())
     }

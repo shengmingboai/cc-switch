@@ -4,7 +4,6 @@ import {
   Copy,
   ExternalLink,
   Github,
-  Globe,
   Info,
   Loader2,
   RefreshCw,
@@ -59,13 +58,7 @@ interface ToolVersion {
   wsl_distro: string | null;
 }
 
-const TOOL_NAMES = [
-  "claude",
-  "codex",
-  "grok",
-  "opencode",
-  "pi",
-] as const;
+const TOOL_NAMES = ["claude", "codex", "grok", "opencode", "pi"] as const;
 type ToolName = (typeof TOOL_NAMES)[number];
 type ToolLifecycleAction = "install" | "update";
 
@@ -862,20 +855,6 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                settingsApi.openExternal(
-                  "https://github.com/shengmingboai/cc-switch",
-                )
-              }
-              className="h-8 gap-1.5 text-xs"
-            >
-              <Globe className="h-3.5 w-3.5" />
-              {t("settings.officialWebsite")}
-            </Button>
             <Button
               type="button"
               variant="outline"

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type AppId } from "@/lib/api";
 import { usePromptActions } from "@/hooks/usePromptActions";
-import { useTauriEvent } from "@/hooks/useTauriEvent";
 import PiPromptPanel, { type PromptPrimaryAction } from "./PiPromptPanel";
 import PromptFormPanel from "./PromptFormPanel";
 import { PromptLibrary } from "./PromptLibrary";
@@ -156,8 +155,6 @@ const StandardPromptPanel = React.forwardRef<
         window.removeEventListener("prompt-imported", handlePromptImported);
       };
     }, [appId, runExternalReload]);
-
-    useTauriEvent("profile-applied", runExternalReload);
 
     const handleAdd = () => {
       if (reloadLockRef.current || writeLockRef.current || interactionBlocked) {

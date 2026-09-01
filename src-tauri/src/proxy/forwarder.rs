@@ -3686,7 +3686,7 @@ mod tests {
         Provider {
             id: "provider-1".to_string(),
             name: "Provider 1".to_string(),
-            settings_config: json!({}),
+            settings_config: json!({ "auth": {}, "config": "" }),
             website_url: None,
             category: None,
             created_at: None,

@@ -243,21 +243,6 @@ export const codexProviderPresets: CodexProviderPreset[] = [
     icon: "kimi",
     iconColor: "#6366F1",
   },
-  // ===== 内置预设：应用内展示按显示名排序，此处文件顺序不影响展示 =====
-  {
-    name: "Amux",
-    websiteUrl: "https://amux.ai",
-    apiKeyUrl: "https://amux.ai",
-    category: "aggregator",
-    auth: generateThirdPartyAuth(""),
-    config: generateThirdPartyConfig(
-      "amux",
-      "https://api.amux.ai/v1",
-      "gpt-5.6-sol",
-    ),
-    endpointCandidates: ["https://api.amux.ai/v1"],
-    icon: "amux",
-  },
   {
     name: "Azure OpenAI",
     websiteUrl:
@@ -395,126 +380,6 @@ requires_openai_auth = true`,
     iconColor: "#0F62FE",
   },
   {
-    name: "Baidu Qianfan Coding Plan",
-    websiteUrl: "https://cloud.baidu.com/product/qianfan_modelbuilder",
-    apiKeyUrl:
-      "https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application",
-    auth: generateThirdPartyAuth(""),
-    config: generateThirdPartyConfig(
-      "qianfan_coding",
-      "https://qianfan.baidubce.com/v2/coding",
-      "qianfan-code-latest",
-    ),
-    endpointCandidates: ["https://qianfan.baidubce.com/v2/coding"],
-    apiFormat: "openai_chat",
-    modelCatalog: modelCatalog([
-      // 两态（2026-08-15 盘点）：千帆 v2 官方 thinking:{type:enabled/disabled}
-      // 覆盖 Coding Plan 主力六模型，官方 OpenCode 接入文档在 /v2/coding 上
-      // 对 minimax-m2.5/glm-5/kimi-k2.5 照发该字段。⚠️别名固有缺陷：控制台把
-      // qianfan-code-latest 解析到 ernie-4.5-turbo 时 none 不会真关思考
-      {
-        model: "qianfan-code-latest",
-        displayName: "Qianfan Code Latest",
-        contextWindow: 131072,
-        reasoningLevels: ["none", "high"],
-      },
-    ]),
-    // 千帆 v2 Chat API 官方顶层参数（与智谱同形态）；平台对不支持的参数
-    // "忽略不报错"（官方多处明载），别名解析到非清单模型时只失效不 400
-    codexChatReasoning: {
-      supportsThinking: true,
-      supportsEffort: false,
-      thinkingParam: "thinking",
-      effortParam: "none",
-      outputFormat: "reasoning_content",
-    },
-    category: "cn_official",
-    icon: "baidu",
-    iconColor: "#2932E1",
-  },
-  {
-    // Token Plan 个人版：2026-07-13 起替代 Coding Plan 发售（Coding Plan
-    // 停止新购、存量可用至到期，故上面的旧预设保留）。无别名机制，直接
-    // 指定真实模型 id；官方 Codex 接入指南 wire_api 省略=chat 默认，与
-    // Coding Plan 同走本地路由。API Key 是订阅页专属 Key（非通用应用 Key）
-    name: "Baidu Qianfan Token Plan",
-    websiteUrl: "https://cloud.baidu.com/product/codingplan.html",
-    apiKeyUrl: "https://console.bce.baidu.com/qianfan/resource/token-plan",
-    auth: generateThirdPartyAuth(""),
-    config: generateThirdPartyConfig(
-      "qianfan_tokenplan",
-      "https://qianfan.baidubce.com/v2/tokenplan/personal",
-      "deepseek-v4-pro",
-    ),
-    endpointCandidates: ["https://qianfan.baidubce.com/v2/tokenplan/personal"],
-    apiFormat: "openai_chat",
-    modelCatalog: modelCatalog([
-      // 阵容与排序=Token Plan 个人版文档（2026-08-14 版）；ernie-5.1 官方
-      // 标注 8/20 下线不收。窗口=千帆平台模型列表页口径（2026-08-06 版，
-      // glm-5.1 与官方 OpenCode 接入页 198000 双重印证）
-      {
-        model: "deepseek-v4-pro",
-        displayName: "DeepSeek V4 Pro",
-        contextWindow: 1048576,
-        // thinking + reasoning_effort 双官方清单模型：none=关思考，high/max
-        // =官方仅有的两档真实深度。不声明 default：官方对复杂 Agent 类请求
-        // 自动置 max=回落结果，显式钉 high 反而会压低平台该行为
-        reasoningLevels: ["none", "high", "max"],
-      },
-      {
-        model: "deepseek-v4-flash",
-        displayName: "DeepSeek V4 Flash",
-        contextWindow: 1048576,
-        reasoningLevels: ["none", "high", "max"],
-      },
-      {
-        // 平台模型列表无独立条目、思考双清单均未收录——窗口按 v4-flash
-        // 同款填，档位无证据不造
-        model: "deepseek-v4-flash-0731",
-        displayName: "DeepSeek V4 Flash 0731",
-        contextWindow: 1048576,
-      },
-      {
-        // 千帆平台标 1M（≠智谱自家 coding 端点 200K 口径，窗口是平台部署
-        // 属性）；thinking 清单（2026-05-27 版）未收录，档位不填
-        model: "glm-5.2",
-        displayName: "GLM-5.2",
-        contextWindow: 1048576,
-      },
-      {
-        model: "glm-5.1",
-        displayName: "GLM-5.1",
-        contextWindow: 198000,
-        // thinking 清单内，且官方 OpenCode 接入页在 Token Plan 端点上对它
-        // 一手下发 thinking:{type:"enabled"} → 真实两态
-        reasoningLevels: ["none", "high"],
-      },
-      {
-        // thinking 清单未收录，档位不填
-        model: "kimi-k2.6",
-        displayName: "Kimi K2.6",
-        contextWindow: 262144,
-      },
-    ]),
-    // 与 Coding Plan 的差异：这里开 supportsEffort——Coding Plan 因别名不知
-    // 解析到谁而保持 false；Token Plan catalog 全为显式模型，默认模型
-    // deepseek-v4-pro 在 reasoning_effort 官方清单内（清单仅 v4-pro/v4-flash，
-    // 档位仅 high/max）。effortValueMode:"deepseek"（max/xhigh/ultra→max、
-    // 其余→high）与千帆官方向下兼容映射（low/medium→high、xhigh→max）逐字
-    // 吻合；非清单模型收到 reasoning_effort 按平台明文"忽略不报错"，无害
-    codexChatReasoning: {
-      supportsThinking: true,
-      supportsEffort: true,
-      thinkingParam: "thinking",
-      effortParam: "reasoning_effort",
-      effortValueMode: "deepseek",
-      outputFormat: "reasoning_content",
-    },
-    category: "cn_official",
-    icon: "baidu",
-    iconColor: "#2932E1",
-  },
-  {
     name: "Bailian",
     websiteUrl: "https://bailian.console.aliyun.com",
     apiKeyUrl: "https://bailian.console.aliyun.com/#/api-key",
@@ -538,55 +403,6 @@ requires_openai_auth = true`,
     category: "cn_official",
     icon: "bailian",
     iconColor: "#624AFF",
-  },
-  {
-    name: "Tencent Hunyuan",
-    websiteUrl: "https://cloud.tencent.com/product/tokenhub",
-    apiKeyUrl: "https://console.cloud.tencent.com/tokenhub/apikey",
-    auth: generateThirdPartyAuth(""),
-    config: generateThirdPartyConfig(
-      "hy3_tokenhub",
-      "https://tokenhub.tencentmaas.com/v1",
-      "hy3",
-    ),
-    // 官方备用域名 tencentmaas.cn（文档 1823/130078）；国际站 tokenhub-intl
-    // 属不同地域，API Key 不跨站通用，不作候选
-    endpointCandidates: [
-      "https://tokenhub.tencentmaas.com/v1",
-      "https://tokenhub.tencentmaas.cn/v1",
-    ],
-    // 腾讯 TokenHub 官方 Codex 文档（cloud.tencent.com/document/product/1823/133532）：
-    // hy3 原生 Responses（wire_api=responses；官方硬性要求的
-    // disable_response_storage=true 已由 generateThirdPartyConfig 输出）。
-    // ⚠️ 须用 TokenHub API Key（创建时范围需勾选 Hy3）；Coding Plan / Token Plan
-    // 订阅 Key 只能走各自 chat 端点，对本预设的 /v1 不通。
-    // hy3 在带 tools 的请求里会把 reasoning_effort=low 服务端自动升为 high
-    // （Codex 恒带 tools），默认 high 即真实行为。
-    apiFormat: "openai_responses",
-    // 无官方 catalog：合成 MiMo 式（shell_command 编辑、不发 freeform apply_patch）
-    modelCatalog: modelCatalog([
-      {
-        model: "hy3",
-        displayName: "Hy3",
-        contextWindow: 256000,
-        // hy3 不在官方多模态理解模型名单（1823/130988），纯文本
-        inputModalities: ["text"],
-        // 官方档位枚举只有 low/high（1823/131208 + 开源权重 chat template
-        // 对其他 effort 值直接 raise）；带 tools 时 low 被服务端升为 high
-        reasoningLevels: ["low", "high"],
-      },
-      {
-        model: "hy3-preview",
-        displayName: "Hy3 Preview",
-        contextWindow: 256000,
-        inputModalities: ["text"],
-        // 同 hy3：官方枚举 low/high（1823/130930 交错式思考模式文档）
-        reasoningLevels: ["low", "high"],
-      },
-    ]),
-    category: "cn_official",
-    icon: "hunyuan",
-    iconColor: "#0055E9",
   },
   {
     name: "MiniMax",
@@ -655,27 +471,6 @@ requires_openai_auth = true`,
     category: "cn_official",
     icon: "minimax",
     iconColor: "#FF6B6B",
-  },
-  {
-    name: "BaiLing",
-    websiteUrl: "https://alipaytbox.yuque.com/sxs0ba/ling/get_started",
-    apiKeyUrl: "https://ling.tbox.cn/open",
-    auth: generateThirdPartyAuth(""),
-    config: generateThirdPartyConfig(
-      "bailing",
-      "https://api.tbox.cn/api/llm/v1",
-      "Ling-2.6-1T",
-    ),
-    endpointCandidates: ["https://api.tbox.cn/api/llm/v1"],
-    apiFormat: "openai_chat",
-    modelCatalog: modelCatalog([
-      {
-        model: "Ling-2.6-1T",
-        displayName: "Ling-2.6-1T",
-        contextWindow: 262144,
-      },
-    ]),
-    category: "cn_official",
   },
   {
     name: "Xiaomi MiMo",
@@ -911,23 +706,6 @@ requires_openai_auth = true`,
     category: "third_party",
     icon: "opencode",
     iconColor: "#211E1E",
-  },
-  {
-    name: "AiHubMix",
-    websiteUrl: "https://aihubmix.com",
-    category: "aggregator",
-    auth: generateThirdPartyAuth(""),
-    config: generateThirdPartyConfig(
-      "aihubmix",
-      "https://aihubmix.com/v1",
-      "gpt-5.6-sol",
-    ),
-    endpointCandidates: [
-      "https://aihubmix.com/v1",
-      "https://api.aihubmix.com/v1",
-    ],
-    icon: "aihubmix",
-    iconColor: "#006FFB",
   },
   {
     name: "OpenRouter",

@@ -41,8 +41,8 @@ describe("Codex remote compaction config helpers", () => {
 model = "gpt-5.4"
 
 [model_providers.custom]
-name = "AIHubMix"
-base_url = "https://aihubmix.example/v1"
+name = "Relay"
+base_url = "https://relay.example/v1"
 wire_api = "responses"
 
 [model_providers.backup]
@@ -50,7 +50,7 @@ name = "Backup"
 base_url = "https://backup.example/v1"
 `;
 
-    const result = setCodexRemoteCompaction(input, true, "AIHubMix");
+    const result = setCodexRemoteCompaction(input, true, "Relay");
 
     expect(isCodexRemoteCompactionEnabled(result)).toBe(true);
     expect(result).toContain(`[model_providers.custom]\nname = "OpenAI"`);
@@ -62,14 +62,14 @@ base_url = "https://backup.example/v1"
 
 [model_providers.custom]
 name = "OpenAI"
-base_url = "https://aihubmix.example/v1"
+base_url = "https://relay.example/v1"
 wire_api = "responses"
 `;
 
-    const result = setCodexRemoteCompaction(input, false, "AIHubMix");
+    const result = setCodexRemoteCompaction(input, false, "Relay");
 
     expect(isCodexRemoteCompactionEnabled(result)).toBe(false);
-    expect(result).toContain(`name = "AIHubMix"`);
+    expect(result).toContain(`name = "Relay"`);
   });
 
   it("does not rewrite reserved built-in providers", () => {
