@@ -1,8 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "CC Switch",
-  "version": "3.20.1",
-  "identifier": "com.ccswitch.desktop",
+  "productName": "AI Switch",
+  "mainBinaryName": "ai-switch",
+  "version": "1.0.0",
+  "identifier": "com.aiswitch.desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:3000",
@@ -56,9 +57,9 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE0QTI2NjNGN0MyQjZBNTkKUldSWmFpdDhQMmFpRkxYaHBmZlQ1dDc3Y2c2akVIaUwvYmZueWxHdk8zajBTOUVkU2ZWczdPZ1UK",
+      "pubkey": "",
       "endpoints": [
-        "https://github.com/shengmingboai/cc-switch/releases/latest/download/latest.json"
+        "https://github.com/shengmingboai/ai-switch/releases/latest/download/latest.json"
       ]
     }
   }

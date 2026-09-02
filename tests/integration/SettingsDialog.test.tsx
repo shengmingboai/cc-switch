@@ -151,7 +151,7 @@ describe("SettingsPage integration", () => {
     );
     fireEvent.click(screen.getByText("settings.tabAdvanced"));
     fireEvent.click(screen.getByText("settings.advanced.configDir.title"));
-    const appInput = await screen.findByDisplayValue("/mock/cc-switch/data");
+    const appInput = await screen.findByDisplayValue("/mock/ai-switch/data");
     expect(appInput).toHaveAttribute("readonly");
   });
 
@@ -196,7 +196,7 @@ describe("SettingsPage integration", () => {
       screen.queryByText("settings.restartRequired"),
     ).not.toBeInTheDocument();
     expect(
-      await screen.findByDisplayValue("/mock/cc-switch/data"),
+      await screen.findByDisplayValue("/mock/ai-switch/data"),
     ).toHaveAttribute("readonly");
   });
 
@@ -213,7 +213,7 @@ describe("SettingsPage integration", () => {
     const browseButtons = screen.getAllByTitle("settings.browseDirectory");
     const resetButtons = screen.getAllByTitle("settings.resetDefault");
 
-    const appInput = await screen.findByDisplayValue("/mock/cc-switch/data");
+    const appInput = await screen.findByDisplayValue("/mock/ai-switch/data");
     expect(appInput).toHaveAttribute("readonly");
 
     const claudeInput = (await screen.findByPlaceholderText(

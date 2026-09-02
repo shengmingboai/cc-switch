@@ -78,9 +78,9 @@ import {
 } from "./utils";
 
 const SESSION_LIST_VIEW_MODE_STORAGE_KEY =
-  "cc-switch.sessionManager.listViewMode";
+  "ai-switch.sessionManager.listViewMode";
 const SESSION_GROUP_EXPANSION_STORAGE_KEY =
-  "cc-switch.sessionManager.groupExpansionState";
+  "ai-switch.sessionManager.groupExpansionState";
 
 type ProviderFilter =
   | "all"

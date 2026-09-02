@@ -236,7 +236,7 @@ Stack Trace (Backtrace)
         drop(crash_log_guard);
 
         if saved {
-            eprintln!("\n[CC-Switch] Crash log saved to: {}", log_path.display());
+            eprintln!("\n[AI-Switch] Crash log saved to: {}", log_path.display());
         }
 
         // 同时输出到 stderr（便于开发调试）
@@ -257,7 +257,7 @@ mod tests {
         assert!(path.ends_with("crash.log"));
         assert!(
             path.to_string_lossy().contains("data")
-                || path.to_string_lossy().contains(".cc-switch")
+                || path.to_string_lossy().contains(".ai-switch")
         );
     }
 

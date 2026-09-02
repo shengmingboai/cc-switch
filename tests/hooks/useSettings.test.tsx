@@ -109,7 +109,7 @@ const createDirectorySettingsMock = (
 ) => ({
   appConfigDir: undefined,
   resolvedDirs: {
-    appConfig: "/home/mock/.cc-switch",
+    appConfig: "/home/mock/.ai-switch",
     claude: "/default/claude",
     codex: "/default/codex",
     opencode: "/default/opencode",

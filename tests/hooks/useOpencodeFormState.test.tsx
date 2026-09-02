@@ -32,16 +32,16 @@ describe("useOpencodeFormState", () => {
       npm: "@ai-sdk/openai-compatible",
       options: {
         headers: {
-          "HTTP-Referer": "https://cc-switch.app",
-          "X-Title": "CC Switch",
+          "HTTP-Referer": "https://ai-switch.app",
+          "X-Title": "AI Switch",
         },
       },
       models: {},
     });
 
     expect(result.current.opencodeHeaders).toEqual({
-      "HTTP-Referer": "https://cc-switch.app",
-      "X-Title": "CC Switch",
+      "HTTP-Referer": "https://ai-switch.app",
+      "X-Title": "AI Switch",
     });
   });
 
@@ -54,12 +54,12 @@ describe("useOpencodeFormState", () => {
 
     act(() => {
       result.current.handleOpencodeHeadersChange({
-        "X-Title": "CC Switch",
+        "X-Title": "AI Switch",
       });
     });
 
     expect(JSON.parse(getSettingsConfig()).options.headers).toEqual({
-      "X-Title": "CC Switch",
+      "X-Title": "AI Switch",
     });
   });
 
@@ -68,7 +68,7 @@ describe("useOpencodeFormState", () => {
       npm: "@ai-sdk/openai-compatible",
       options: {
         headers: {
-          "X-Title": "CC Switch",
+          "X-Title": "AI Switch",
         },
       },
       models: {},

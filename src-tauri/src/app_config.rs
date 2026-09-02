@@ -105,7 +105,7 @@ impl SkillApps {
             AppType::GrokBuild => self.grokbuild = enabled,
             AppType::OpenCode => self.opencode = enabled,
             AppType::Pi => self.pi = enabled,
-            AppType::ClaudeDesktop => {} // Claude Desktop 3P profiles don't use CC Switch skill sync
+            AppType::ClaudeDesktop => {} // Claude Desktop 3P profiles don't use AI Switch skill sync
         }
     }
 
@@ -149,7 +149,7 @@ impl SkillApps {
     /// 从来源标签列表构建启用状态
     ///
     /// 标签与 AppType::as_str() 一致时启用对应应用，
-    /// 其他标签（如 "agents", "cc-switch"）忽略。
+    /// 其他标签（如 "agents", "ai-switch"）忽略。
     pub fn from_labels(labels: &[String]) -> Self {
         let mut apps = Self::default();
         for label in labels {
@@ -198,7 +198,7 @@ pub struct InstalledSkill {
     pub updated_at: i64,
 }
 
-/// 未管理的 Skill（在应用目录中发现但未被 CC Switch 管理）
+/// 未管理的 Skill（在应用目录中发现但未被 AI Switch 管理）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UnmanagedSkill {
@@ -495,7 +495,7 @@ impl Default for MultiAppConfig {
 }
 
 impl MultiAppConfig {
-    /// 从文件加载配置（仅支持 v2 结构）
+    /// 从文件加载配置
     pub fn load() -> Result<Self, AppError> {
         let config_path = get_app_config_path();
 
@@ -512,80 +512,19 @@ impl MultiAppConfig {
         let content =
             std::fs::read_to_string(&config_path).map_err(|e| AppError::io(&config_path, e))?;
 
-        // 先解析为 Value，以便严格判定是否为 v1 结构；
-        // 满足：顶层同时包含 providers(object) + current(string)，且不包含 version/apps/mcp 关键键，即视为 v1
-        let value: serde_json::Value =
-            serde_json::from_str(&content).map_err(|e| AppError::json(&config_path, e))?;
-        let is_v1 = value.as_object().is_some_and(|map| {
-            let has_providers = map.get("providers").map(|v| v.is_object()).unwrap_or(false);
-            let has_current = map.get("current").map(|v| v.is_string()).unwrap_or(false);
-            // v1 的充分必要条件：有 providers 和 current，且 apps 不存在（version/mcp 可能存在但不作为 v2 判据）
-            let has_apps = map.contains_key("apps");
-            has_providers && has_current && !has_apps
-        });
-        if is_v1 {
-            return Err(AppError::localized(
-                "config.unsupported_v1",
-                "检测到旧版 v1 配置格式。当前版本已不再支持运行时自动迁移。\n\n解决方案：\n1. 安装 v3.2.x 版本进行一次性自动迁移\n2. 或手动编辑 ~/.cc-switch/config.json，将顶层结构调整为：\n   {\"version\": 2, \"claude\": {...}, \"codex\": {...}, \"mcp\": {...}}\n\n",
-                "Detected legacy v1 config. Runtime auto-migration is no longer supported.\n\nSolutions:\n1. Install v3.2.x for one-time auto-migration\n2. Or manually edit ~/.cc-switch/config.json to adjust the top-level structure:\n   {\"version\": 2, \"claude\": {...}, \"codex\": {...}, \"mcp\": {...}}\n\n",
-            ));
-        }
-
-        let has_skills_in_config = value
-            .as_object()
-            .is_some_and(|map| map.contains_key("skills"));
-
-        // 解析 v2 结构
         let mut config: Self =
-            serde_json::from_value(value).map_err(|e| AppError::json(&config_path, e))?;
+            serde_json::from_str(&content).map_err(|e| AppError::json(&config_path, e))?;
         let mut updated = false;
 
-        if !has_skills_in_config {
-            let skills_path = get_app_config_dir().join("skills.json");
-            if skills_path.exists() {
-                match std::fs::read_to_string(&skills_path) {
-                    Ok(content) => match serde_json::from_str::<SkillStore>(&content) {
-                        Ok(store) => {
-                            config.skills = store;
-                            updated = true;
-                            log::info!("已从旧版 skills.json 导入 Claude Skills 配置");
-                        }
-                        Err(e) => {
-                            log::warn!("解析旧版 skills.json 失败: {e}");
-                        }
-                    },
-                    Err(e) => {
-                        log::warn!("读取旧版 skills.json 失败: {e}");
-                    }
-                }
-            }
-        }
-
-        // 执行 MCP 迁移（v3.6.x → v3.7.0）
-        let migrated = config.migrate_mcp_to_unified()?;
-        if migrated {
-            log::info!("MCP 配置已迁移到 v3.7.0 统一结构，保存配置...");
-            updated = true;
-        }
-
-        // 对于已经存在的配置文件，如果此前版本还没有 Prompt 功能，
-        // 且 prompts 仍然是空的，则尝试自动导入现有提示词文件。
+        // 对于已经存在的配置文件，如果 prompts 仍然是空的，
+        // 则尝试自动导入现有提示词文件。
         let imported_prompts = config.maybe_auto_import_prompts_for_existing_config()?;
         if imported_prompts {
             updated = true;
         }
 
-        // 迁移通用配置片段：claude_common_config_snippet → common_config_snippets.claude
-        if let Some(old_claude_snippet) = config.claude_common_config_snippet.take() {
-            log::info!(
-                "迁移通用配置：claude_common_config_snippet → common_config_snippets.claude"
-            );
-            config.common_config_snippets.claude = Some(old_claude_snippet);
-            updated = true;
-        }
-
         if updated {
-            log::info!("配置结构已更新（包括 MCP 迁移或 Prompt 自动导入），保存配置...");
+            log::info!("配置结构已更新（Prompt 自动导入），保存配置...");
             config.save()?;
         }
 
@@ -595,7 +534,7 @@ impl MultiAppConfig {
     /// 保存配置到文件
     pub fn save(&self) -> Result<(), AppError> {
         let config_path = get_app_config_path();
-        // 先备份旧版（若存在）到 ~/.cc-switch/config.json.bak，再写入新内容
+        // 先备份旧版（若存在）到 ~/.ai-switch/config.json.bak，再写入新内容
         if config_path.exists() {
             let backup_path = get_app_config_dir().join("config.json.bak");
             if let Err(e) = copy_file(&config_path, &backup_path) {
@@ -927,11 +866,11 @@ mod tests {
             let dir = TempDir::new().expect("failed to create temp home");
             let original_home = env::var("HOME").ok();
             let original_userprofile = env::var("USERPROFILE").ok();
-            let original_test_home = env::var("CC_SWITCH_TEST_HOME").ok();
+            let original_test_home = env::var("AI_SWITCH_TEST_HOME").ok();
 
             env::set_var("HOME", dir.path());
             env::set_var("USERPROFILE", dir.path());
-            env::set_var("CC_SWITCH_TEST_HOME", dir.path());
+            env::set_var("AI_SWITCH_TEST_HOME", dir.path());
 
             Self {
                 dir,
@@ -955,8 +894,8 @@ mod tests {
             }
 
             match &self.original_test_home {
-                Some(value) => env::set_var("CC_SWITCH_TEST_HOME", value),
-                None => env::remove_var("CC_SWITCH_TEST_HOME"),
+                Some(value) => env::set_var("AI_SWITCH_TEST_HOME", value),
+                None => env::remove_var("AI_SWITCH_TEST_HOME"),
             }
         }
     }

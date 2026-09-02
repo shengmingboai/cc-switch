@@ -90,7 +90,7 @@ pub struct WebDavSyncStatus {
 }
 
 fn default_remote_root() -> String {
-    "cc-switch-sync".to_string()
+    "ai-switch-sync".to_string()
 }
 fn default_profile() -> String {
     "default".to_string()
@@ -271,61 +271,6 @@ impl S3SyncSettings {
     }
 }
 
-/// 本机自动迁移状态。
-///
-/// 这里记录的是本机启动时执行过的一次性迁移；标记不随数据库同步。
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct LocalMigrations {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub codex_third_party_history_provider_bucket_v1:
-        Option<CodexThirdPartyHistoryProviderBucketMigration>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub codex_provider_template_v1: Option<CodexProviderTemplateMigration>,
-    /// 统一会话开关的官方历史迁移标记。开关关闭时会被清除，
-    /// 这样重新开启能把"关闭期间"落入 openai 桶的官方会话补迁进来。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub codex_official_history_unify_v1: Option<CodexOfficialHistoryUnifyMigration>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CodexThirdPartyHistoryProviderBucketMigration {
-    pub completed_at: String,
-    pub target_provider_id: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub source_provider_ids: Vec<String>,
-    #[serde(default)]
-    pub migrated_jsonl_files: usize,
-    #[serde(default)]
-    pub migrated_state_rows: usize,
-    #[serde(default)]
-    pub scanned_history_files: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CodexProviderTemplateMigration {
-    pub completed_at: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub migrated_provider_ids: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CodexOfficialHistoryUnifyMigration {
-    pub completed_at: String,
-    pub target_provider_id: String,
-    #[serde(default)]
-    pub migrated_jsonl_files: usize,
-    #[serde(default)]
-    pub migrated_state_rows: usize,
-    /// 迁移时的规范化 Codex 目录。标记只对同一目录生效：
-    /// 切换 codex_config_dir 后旧标记不会挡住新目录的迁移。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub codex_config_dir: Option<String>,
-}
-
 /// 应用设置结构
 ///
 /// 存储设备级别设置，保存在本地 `<app_config_dir>/settings.json`，不随数据库同步。
@@ -427,7 +372,7 @@ pub struct AppSettings {
     /// Skill 同步方式：auto（默认，优先 symlink）、symlink、copy
     #[serde(default)]
     pub skill_sync_method: SyncMethod,
-    /// Skill 存储位置：cc_switch（默认）或 unified（~/.agents/skills/）
+    /// Skill 存储位置：ai_switch（默认）或 unified（~/.agents/skills/）
     #[serde(default)]
     pub skill_storage_location: SkillStorageLocation,
 
@@ -458,10 +403,6 @@ pub struct AppSettings {
     /// - Linux: "gnome-terminal" | "konsole" | "xfce4-terminal" | "alacritty" | "kitty" | "ghostty"
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preferred_terminal: Option<String>,
-
-    // ===== 本机自动迁移状态 =====
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub local_migrations: Option<LocalMigrations>,
 }
 
 fn default_show_in_tray() -> bool {
@@ -517,7 +458,6 @@ impl Default for AppSettings {
             backup_interval_hours: None,
             backup_retain_count: None,
             preferred_terminal: None,
-            local_migrations: None,
         }
     }
 }
@@ -765,98 +705,6 @@ where
     save_settings_file(&next)?;
     *guard = next;
     Ok(())
-}
-
-pub fn is_codex_third_party_history_provider_bucket_migrated() -> bool {
-    get_settings()
-        .local_migrations
-        .as_ref()
-        .and_then(|migrations| {
-            migrations
-                .codex_third_party_history_provider_bucket_v1
-                .as_ref()
-        })
-        .is_some_and(|m| m.scanned_history_files)
-}
-
-pub fn mark_codex_third_party_history_provider_bucket_migrated(
-    migration: CodexThirdPartyHistoryProviderBucketMigration,
-) -> Result<(), AppError> {
-    mutate_settings(|settings| {
-        let migrations = settings
-            .local_migrations
-            .get_or_insert_with(Default::default);
-        migrations.codex_third_party_history_provider_bucket_v1 = Some(migration);
-    })
-}
-
-pub fn is_codex_provider_template_migrated() -> bool {
-    get_settings()
-        .local_migrations
-        .as_ref()
-        .and_then(|migrations| migrations.codex_provider_template_v1.as_ref())
-        .is_some()
-}
-
-pub fn mark_codex_provider_template_migrated(
-    migration: CodexProviderTemplateMigration,
-) -> Result<(), AppError> {
-    mutate_settings(|settings| {
-        let migrations = settings
-            .local_migrations
-            .get_or_insert_with(Default::default);
-        migrations.codex_provider_template_v1 = Some(migration);
-    })
-}
-
-/// 统一会话迁移标记是否覆盖指定目录。标记里没记目录（不应出现的旧格式）
-/// 视为不匹配——重跑迁移是幂等的，宁可重迁也不漏迁。
-pub fn is_codex_official_history_unify_migrated_for_dir(codex_dir: &str) -> bool {
-    get_settings()
-        .local_migrations
-        .as_ref()
-        .and_then(|migrations| migrations.codex_official_history_unify_v1.as_ref())
-        .is_some_and(|migration| migration.codex_config_dir.as_deref() == Some(codex_dir))
-}
-
-/// 条件写入迁移完成标记：仅当此刻开关仍开启且迁移意愿仍在时才写。
-/// 检查与写入在 settings 写锁内原子完成，与关闭开关路径
-/// （`update_settings` / 清标记）串行，消除"迁移线程复查开关后、写标记前
-/// 用户恰好关闭开关"的竞态窗口。返回是否实际写入。
-pub fn mark_codex_official_history_unify_migrated_if_enabled(
-    migration: CodexOfficialHistoryUnifyMigration,
-) -> Result<bool, AppError> {
-    let mut written = false;
-    mutate_settings(|settings| {
-        if settings.unify_codex_session_history
-            && settings.unify_codex_migrate_existing.unwrap_or(false)
-        {
-            settings
-                .local_migrations
-                .get_or_insert_with(Default::default)
-                .codex_official_history_unify_v1 = Some(migration);
-            written = true;
-        }
-    })?;
-    Ok(written)
-}
-
-pub fn clear_codex_official_history_unify_migration() -> Result<(), AppError> {
-    mutate_settings(|settings| {
-        if let Some(migrations) = settings.local_migrations.as_mut() {
-            migrations.codex_official_history_unify_v1 = None;
-        }
-    })
-}
-
-pub fn unify_codex_migrate_existing_requested() -> bool {
-    get_settings().unify_codex_migrate_existing.unwrap_or(false)
-}
-
-pub fn clear_codex_unify_migrate_existing() -> Result<(), AppError> {
-    mutate_settings(|settings| {
-        settings.unify_codex_migrate_existing = None;
-    })
 }
 
 /// 从文件重新加载设置到内存缓存

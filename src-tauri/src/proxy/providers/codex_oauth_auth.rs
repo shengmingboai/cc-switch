@@ -64,7 +64,7 @@ const DEVICE_CODE_DEFAULT_EXPIRES_IN: u64 = 900;
 const POLLING_SAFETY_MARGIN_SECS: u64 = 3;
 
 /// User-Agent
-const CODEX_USER_AGENT: &str = "cc-switch-codex-oauth";
+const CODEX_USER_AGENT: &str = "ai-switch-codex-oauth";
 
 /// Codex OAuth 错误
 #[derive(Debug, thiserror::Error)]
@@ -252,7 +252,7 @@ struct CodexAccountData {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id_token: Option<String>,
     /// 最近一次取得或采纳这组 OAuth token 的时间。用于在 Codex CLI 与
-    /// cc-switch 都可能轮换 refresh_token 时拒绝从 live 采纳更旧的一代。
+    /// ai-switch 都可能轮换 refresh_token 时拒绝从 live 采纳更旧的一代。
     #[serde(default)]
     pub token_updated_at_ms: i64,
 }
@@ -1139,7 +1139,7 @@ impl CodexOAuthManager {
     ///
     /// Returns the exact refresh token observed on disk. Callers must compare
     /// it again immediately before their live write/delete; the external Codex
-    /// CLI does not participate in cc-switch's switch lock and may refresh in
+    /// CLI does not participate in ai-switch's switch lock and may refresh in
     /// the adopt-to-write window.
     pub(crate) async fn prepare_live_auth_for_account_switch_away(
         &self,

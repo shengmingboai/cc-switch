@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use cc_switch_lib::{
+use ai_switch_lib::{
     get_claude_settings_path, read_json_file, write_codex_live_atomic, AppError, AppType, McpApps,
     McpServer, MultiAppConfig, Provider, ProviderMeta, ProviderService,
 };
@@ -177,12 +177,12 @@ command = "say"
         .expect("switch provider should succeed");
 
     assert!(
-        !cc_switch_lib::get_codex_auth_path().exists(),
+        !ai_switch_lib::get_codex_auth_path().exists(),
         "direct third-party switching must remove the outgoing auth.json"
     );
 
     let config_text =
-        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config.toml");
+        std::fs::read_to_string(ai_switch_lib::get_codex_config_path()).expect("read config.toml");
     assert!(
         config_text.contains("mcp_servers.echo-server"),
         "config.toml should contain synced MCP servers"
@@ -304,7 +304,7 @@ requires_openai_auth = true
         .expect("switch provider should succeed");
 
     let config_text =
-        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config.toml");
+        std::fs::read_to_string(ai_switch_lib::get_codex_config_path()).expect("read config.toml");
     let parsed: toml::Value = toml::from_str(&config_text).expect("parse config.toml");
 
     assert_eq!(
@@ -440,12 +440,12 @@ requires_openai_auth = true
         .expect("switch to bridge provider should succeed");
 
     assert!(
-        !cc_switch_lib::get_codex_auth_path().exists(),
+        !ai_switch_lib::get_codex_auth_path().exists(),
         "direct third-party switching must remove the outgoing official auth.json"
     );
 
     let live_config =
-        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config.toml");
+        std::fs::read_to_string(ai_switch_lib::get_codex_config_path()).expect("read config.toml");
     let parsed_live: toml::Value = toml::from_str(&live_config).expect("parse live config");
     assert_eq!(
         parsed_live
@@ -587,12 +587,12 @@ wire_api = "responses"
         .expect("switch from official subscription to DeepSeek");
 
     assert!(
-        !cc_switch_lib::get_codex_auth_path().exists(),
+        !ai_switch_lib::get_codex_auth_path().exists(),
         "a direct third-party switch must remove the outgoing official auth.json"
     );
 
     let config_after_switch =
-        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config");
+        std::fs::read_to_string(ai_switch_lib::get_codex_config_path()).expect("read config");
     assert!(
         config_after_switch.contains("https://api.deepseek.com/v1"),
         "normal switch should write the DeepSeek endpoint before takeover"
@@ -620,14 +620,14 @@ wire_api = "responses"
     let codex_proxy_base_url = format!("http://127.0.0.1:{}/v1", proxy_status.port);
 
     let auth_after_takeover: serde_json::Value =
-        read_json_file(&cc_switch_lib::get_codex_auth_path()).expect("read auth after takeover");
+        read_json_file(&ai_switch_lib::get_codex_auth_path()).expect("read auth after takeover");
     assert_eq!(
         auth_after_takeover, oauth_auth,
         "enabling takeover must not rewrite Codex OAuth auth.json"
     );
 
     let config_after_takeover =
-        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config");
+        std::fs::read_to_string(ai_switch_lib::get_codex_config_path()).expect("read config");
     assert!(
         config_after_takeover.contains(&codex_proxy_base_url),
         "enabling takeover should point Codex config.toml at the local proxy"
@@ -666,13 +666,13 @@ wire_api = "responses"
         .expect("disable Codex takeover");
 
     let restored_auth: serde_json::Value =
-        read_json_file(&cc_switch_lib::get_codex_auth_path()).expect("read restored auth");
+        read_json_file(&ai_switch_lib::get_codex_auth_path()).expect("read restored auth");
     assert_eq!(
         restored_auth, oauth_auth,
         "disabling takeover should restore without replacing OAuth auth.json"
     );
 
-    let restored_config = std::fs::read_to_string(cc_switch_lib::get_codex_config_path())
+    let restored_config = std::fs::read_to_string(ai_switch_lib::get_codex_config_path())
         .expect("read restored config");
     assert!(
         restored_config.contains("https://api.deepseek.com/v1")
@@ -760,12 +760,12 @@ requires_openai_auth = true
         .expect("switch to third-party provider should succeed");
 
     assert!(
-        !cc_switch_lib::get_codex_auth_path().exists(),
+        !ai_switch_lib::get_codex_auth_path().exists(),
         "third-party switching must delete auth.json — the official login goes away \
          and the key rides in config.toml instead"
     );
     let live_config =
-        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config.toml");
+        std::fs::read_to_string(ai_switch_lib::get_codex_config_path()).expect("read config.toml");
     assert!(
         live_config.contains("experimental_bearer_token = \"third-party-key\""),
         "the third-party key must be injected as the provider-scoped bearer token; got:\n{live_config}"
@@ -816,12 +816,12 @@ requires_openai_auth = false
         .expect("switch to third-party provider should succeed");
 
     assert!(
-        !cc_switch_lib::get_codex_auth_path().exists(),
+        !ai_switch_lib::get_codex_auth_path().exists(),
         "third-party switches are config-only: no auth.json is written"
     );
 
     let live_config =
-        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config.toml");
+        std::fs::read_to_string(ai_switch_lib::get_codex_config_path()).expect("read config.toml");
     assert!(
         live_config.contains("experimental_bearer_token = \"third-party-key\""),
         "default switch must inject the API key into config.toml so Codex >= 0.149 \
@@ -873,7 +873,7 @@ fn provider_service_switch_codex_normalizes_legacy_reroute_config() {
     reset_test_fs();
     // A legacy-shape third-party config (top-level openai_base_url rerouting
     // the built-in `openai` provider) has no provider table to carry the
-    // bearer token. The switch must normalize it into a cc-switch-owned
+    // bearer token. The switch must normalize it into a ai-switch-owned
     // custom table with the key injected before committing the switch.
     let _home = ensure_test_home();
 
@@ -917,20 +917,20 @@ openai_base_url = "https://relay.example/v1"
         .expect("legacy reroute shape must be normalized, not rejected");
 
     let live_config =
-        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config.toml");
+        std::fs::read_to_string(ai_switch_lib::get_codex_config_path()).expect("read config.toml");
     assert!(
         !live_config.contains("openai_base_url"),
         "the top-level reroute must be rewritten away; got:\n{live_config}"
     );
     assert!(
-        live_config.contains("[model_providers.cc-switch]")
+        live_config.contains("[model_providers.ai-switch]")
             && live_config.contains("base_url = \"https://relay.example/v1\"")
             && live_config.contains("experimental_bearer_token = \"third-party-key\""),
-        "routing and key must move into the cc-switch provider table; got:\n{live_config}"
+        "routing and key must move into the ai-switch provider table; got:\n{live_config}"
     );
 
     assert!(
-        !cc_switch_lib::get_codex_auth_path().exists(),
+        !ai_switch_lib::get_codex_auth_path().exists(),
         "direct third-party switching must remove the outgoing official auth.json"
     );
 }
@@ -976,17 +976,17 @@ experimental_bearer_token = "config-carried-key"
         .expect("legacy reroute with a config-carried token must be normalized");
 
     let live_config =
-        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config.toml");
+        std::fs::read_to_string(ai_switch_lib::get_codex_config_path()).expect("read config.toml");
     assert!(
         !live_config.contains("openai_base_url"),
         "the top-level reroute must be rewritten away; got:\n{live_config}"
     );
     assert!(
-        live_config.contains("[model_providers.cc-switch]"),
-        "a cc-switch provider table must be created; got:\n{live_config}"
+        live_config.contains("[model_providers.ai-switch]"),
+        "a ai-switch provider table must be created; got:\n{live_config}"
     );
     assert_eq!(
-        cc_switch_lib::extract_codex_experimental_bearer_token(&live_config).as_deref(),
+        ai_switch_lib::extract_codex_experimental_bearer_token(&live_config).as_deref(),
         Some("config-carried-key"),
         "the config-carried key must resolve for the rewritten provider; got:\n{live_config}"
     );
@@ -1031,16 +1031,16 @@ openai_base_url = "https://relay.example/v1"
         .expect("default-path switch must normalize the legacy ambient-auth shape");
 
     assert!(
-        !cc_switch_lib::get_codex_auth_path().exists(),
+        !ai_switch_lib::get_codex_auth_path().exists(),
         "third-party switches are config-only: no auth.json is written"
     );
     let live_config =
-        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config.toml");
+        std::fs::read_to_string(ai_switch_lib::get_codex_config_path()).expect("read config.toml");
     assert!(
         !live_config.contains("openai_base_url")
-            && live_config.contains("[model_providers.cc-switch]")
+            && live_config.contains("[model_providers.ai-switch]")
             && live_config.contains("experimental_bearer_token = \"third-party-key\""),
-        "routing and key must move into the cc-switch provider table; got:\n{live_config}"
+        "routing and key must move into the ai-switch provider table; got:\n{live_config}"
     );
 }
 
@@ -1170,7 +1170,7 @@ http_headers = { Authorization = "Bearer explicit-header-token" }
         .expect("direct switching must support keyless header-auth providers");
 
     let config_text =
-        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config.toml");
+        std::fs::read_to_string(ai_switch_lib::get_codex_config_path()).expect("read config.toml");
     assert!(
         config_text.contains("Authorization = \"Bearer explicit-header-token\""),
         "the provider's own Authorization header must be written verbatim; got:\n{config_text}"
@@ -1242,7 +1242,7 @@ requires_openai_auth = true
         .expect("switch to official provider should succeed without API key");
 
     let auth_value: serde_json::Value =
-        read_json_file(&cc_switch_lib::get_codex_auth_path()).expect("read auth.json");
+        read_json_file(&ai_switch_lib::get_codex_auth_path()).expect("read auth.json");
     assert_eq!(
         auth_value.get("auth_mode").and_then(|v| v.as_str()),
         Some("chatgpt")
@@ -1262,7 +1262,7 @@ requires_openai_auth = true
     );
 
     let live_config =
-        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config.toml");
+        std::fs::read_to_string(ai_switch_lib::get_codex_config_path()).expect("read config.toml");
     assert!(
         !live_config.contains("experimental_bearer_token"),
         "official login provider has no API key to inject"
@@ -1332,7 +1332,7 @@ requires_openai_auth = true
         .expect("switch to official provider should succeed");
 
     assert!(
-        !cc_switch_lib::get_codex_auth_path().exists(),
+        !ai_switch_lib::get_codex_auth_path().exists(),
         "switching to a material-less official provider must delete the stale \
          third-party auth.json so Codex shows its login screen"
     );
@@ -1353,7 +1353,7 @@ requires_openai_auth = true
     );
 
     let live_config =
-        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config.toml");
+        std::fs::read_to_string(ai_switch_lib::get_codex_config_path()).expect("read config.toml");
     assert!(
         !live_config.contains("experimental_bearer_token"),
         "official provider has no API key to inject"
@@ -1399,7 +1399,7 @@ fn provider_service_reswitch_current_official_keeps_live_auth() {
         .expect("re-switch to current official provider should succeed");
 
     let auth_value: serde_json::Value =
-        read_json_file(&cc_switch_lib::get_codex_auth_path()).expect("auth.json must survive");
+        read_json_file(&ai_switch_lib::get_codex_auth_path()).expect("auth.json must survive");
     assert_eq!(
         auth_value.get("OPENAI_API_KEY").and_then(|v| v.as_str()),
         Some("residue-key"),
@@ -1414,18 +1414,18 @@ fn read_codex_live_settings_tolerates_missing_auth_when_config_file_exists() {
     let _home = ensure_test_home();
 
     assert!(
-        cc_switch_lib::read_codex_live_settings().is_err(),
+        ai_switch_lib::read_codex_live_settings().is_err(),
         "both files missing is still 'no live install'"
     );
 
     // auth.json deleted + empty config.toml is the exact state the official
     // switch cleanup leaves behind; it must stay readable or the next
     // backfill / hot switch would treat Codex as uninstalled.
-    let config_path = cc_switch_lib::get_codex_config_path();
+    let config_path = ai_switch_lib::get_codex_config_path();
     std::fs::create_dir_all(config_path.parent().expect("codex dir")).expect("create codex dir");
     std::fs::write(&config_path, "").expect("write empty config.toml");
 
-    let live = cc_switch_lib::read_codex_live_settings()
+    let live = ai_switch_lib::read_codex_live_settings()
         .expect("config file present but empty must be readable");
     assert_eq!(live.get("auth"), Some(&json!({})));
     assert_eq!(live.get("config").and_then(|v| v.as_str()), Some(""));
@@ -1496,7 +1496,7 @@ fn reapply_codex_official_live_resyncs_mcp_servers() {
 
     ProviderService::switch(&state, AppType::Codex, "codex-official")
         .expect("switch to official provider");
-    let live = std::fs::read_to_string(cc_switch_lib::get_codex_config_path())
+    let live = std::fs::read_to_string(ai_switch_lib::get_codex_config_path())
         .expect("read config.toml after switch");
     assert!(
         live.contains("mcp_servers.echo-server"),
@@ -1506,13 +1506,13 @@ fn reapply_codex_official_live_resyncs_mcp_servers() {
     // 统一会话开关变更触发的 reapply 会整体重写 live config.toml（有意设计），
     // 写完必须重新投影 DB 里启用的 MCP，否则用户的 MCP 会静默失效。
     let reapplied =
-        cc_switch_lib::reapply_current_codex_official_live(&state).expect("reapply official live");
+        ai_switch_lib::reapply_current_codex_official_live(&state).expect("reapply official live");
     assert!(
         reapplied,
         "current provider is official, reapply should run"
     );
 
-    let live = std::fs::read_to_string(cc_switch_lib::get_codex_config_path())
+    let live = std::fs::read_to_string(ai_switch_lib::get_codex_config_path())
         .expect("read config.toml after reapply");
     assert!(
         live.contains("mcp_servers.echo-server"),
@@ -1599,10 +1599,10 @@ fn reapply_codex_official_live_projects_mcp_despite_broken_claude_json() {
     // 破坏 ~/.claude.json：坏 JSON 能通过 should_sync_claude_mcp 门控
     // （文件存在即过），但 read_mcp_servers_map 解析必然报错。
     // 注意 codex-only 的服务器也会触发 claude 的 remove 分支读该文件。
-    let claude_json = cc_switch_lib::get_claude_mcp_path();
+    let claude_json = ai_switch_lib::get_claude_mcp_path();
     std::fs::write(&claude_json, "{ not valid json").expect("seed broken claude json");
 
-    let reapplied = cc_switch_lib::reapply_current_codex_official_live(&state)
+    let reapplied = ai_switch_lib::reapply_current_codex_official_live(&state)
         .expect("MCP projection failure must degrade to a warning, not fail the toggle");
     assert!(
         reapplied,
@@ -1611,7 +1611,7 @@ fn reapply_codex_official_live_projects_mcp_despite_broken_claude_json() {
 
     // 定向投影不碰 claude：Codex 的 MCP 投影必须完成，不能被
     // 无关应用的损坏文件阻断后静默丢失。
-    let live = std::fs::read_to_string(cc_switch_lib::get_codex_config_path())
+    let live = std::fs::read_to_string(ai_switch_lib::get_codex_config_path())
         .expect("read config.toml after reapply");
     assert!(
         live.contains("mcp_servers.echo-server"),
@@ -1685,13 +1685,13 @@ fn switch_codex_projects_mcp_despite_broken_claude_json() {
     // 坏 JSON 能通过 should_sync_claude_mcp 门控（文件存在即过），
     // 但 read_mcp_servers_map 解析必然报错；codex-only 服务器也会
     // 触发 claude 的 remove 分支去读这个文件。
-    let claude_json = cc_switch_lib::get_claude_mcp_path();
+    let claude_json = ai_switch_lib::get_claude_mcp_path();
     std::fs::write(&claude_json, "{ not valid json").expect("seed broken claude json");
 
     ProviderService::switch(&state, AppType::Codex, "p")
         .expect("broken ~/.claude.json must not fail an unrelated codex switch");
 
-    let live = std::fs::read_to_string(cc_switch_lib::get_codex_config_path())
+    let live = std::fs::read_to_string(ai_switch_lib::get_codex_config_path())
         .expect("read config.toml after switch");
     assert!(
         live.contains("mcp_servers.echo-server"),
@@ -1744,10 +1744,10 @@ fn sync_all_enabled_reports_broken_app_but_projects_the_rest() {
 
     let state = create_test_state_with_config(&config).expect("create test state");
 
-    let claude_json = cc_switch_lib::get_claude_mcp_path();
+    let claude_json = ai_switch_lib::get_claude_mcp_path();
     std::fs::write(&claude_json, "{ not valid json").expect("seed broken claude json");
 
-    let err = cc_switch_lib::McpService::sync_all_enabled(&state)
+    let err = ai_switch_lib::McpService::sync_all_enabled(&state)
         .expect_err("broken claude live must surface as an aggregated error");
     let message = err.to_string();
     assert!(
@@ -1756,7 +1756,7 @@ fn sync_all_enabled_reports_broken_app_but_projects_the_rest() {
     );
 
     // Claude 的失败不能阻断 Codex：best-effort 必须继续投影其余应用。
-    let live = std::fs::read_to_string(cc_switch_lib::get_codex_config_path())
+    let live = std::fs::read_to_string(ai_switch_lib::get_codex_config_path())
         .expect("read config.toml after sync_all_enabled");
     assert!(
         live.contains("mcp_servers.echo-server"),
@@ -1835,7 +1835,7 @@ fn provider_service_switch_codex_official_accounts_write_auth_json() {
     ProviderService::switch(&state, AppType::Codex, "official-b")
         .expect("switch to official account B should write auth.json");
     let auth_b: serde_json::Value =
-        read_json_file(&cc_switch_lib::get_codex_auth_path()).expect("read auth B");
+        read_json_file(&ai_switch_lib::get_codex_auth_path()).expect("read auth B");
     assert_eq!(
         auth_b
             .pointer("/tokens/access_token")
@@ -1847,7 +1847,7 @@ fn provider_service_switch_codex_official_accounts_write_auth_json() {
     ProviderService::switch(&state, AppType::Codex, "official-a")
         .expect("switch back to official account A should use backfilled live auth");
     let auth_a: serde_json::Value =
-        read_json_file(&cc_switch_lib::get_codex_auth_path()).expect("read auth A");
+        read_json_file(&ai_switch_lib::get_codex_auth_path()).expect("read auth A");
     assert_eq!(
         auth_a
             .pointer("/tokens/access_token")
@@ -2182,14 +2182,14 @@ wire_api = "responses"
         .expect("switch should update takeover backup instead of writing normal live config");
 
     let auth_after: serde_json::Value =
-        read_json_file(&cc_switch_lib::get_codex_auth_path()).expect("read auth.json");
+        read_json_file(&ai_switch_lib::get_codex_auth_path()).expect("read auth.json");
     assert_eq!(
         auth_after, oauth_auth,
         "provider switch during takeover ownership must not rewrite Codex OAuth auth"
     );
 
     let live_config =
-        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config.toml");
+        std::fs::read_to_string(ai_switch_lib::get_codex_config_path()).expect("read config.toml");
     assert!(
         live_config.contains("http://127.0.0.1:15721/v1"),
         "live config should remain pointed at the local proxy"
@@ -2623,7 +2623,7 @@ fn switch_claude_syncs_deletions_from_live_into_common_config() {
 }
 
 /// Codex 版切换自动回写：live 里新增的共享键被捕获进通用配置片段并传递给
-/// 下一个供应商；供应商专属字段、密钥与 cc-switch 注入产物绝不进片段；
+/// 下一个供应商；供应商专属字段、密钥与 ai-switch 注入产物绝不进片段；
 /// 回填后旧供应商的存储配置不残留片段内容（autosync 先于 strip，值必然匹配）。
 #[test]
 fn switch_codex_syncs_shared_keys_from_live_into_common_config() {
@@ -2632,14 +2632,14 @@ fn switch_codex_syncs_shared_keys_from_live_into_common_config() {
     let _home = ensure_test_home();
 
     // A 激活状态下的 live：A 专属路由 + 已共享的 [tui] + 用户刚加的
-    // disable_response_storage + cc-switch 注入产物 + MCP 同步投影
+    // disable_response_storage + ai-switch 注入产物 + MCP 同步投影
     // + 顶层 wire_api（无 model_provider 时的 fallback 写法，属 A 的路由语义）
     // + 历史错误格式 [mcp.servers]（sync_all_enabled 清不掉的孤儿形态）
     let live_config = r#"model = "gpt-5.5"
 model_provider = "aprov"
 wire_api = "chat"
 experimental_bearer_token = "sk-a-live-secret"
-model_catalog_json = "cc-switch-model-catalog.json"
+model_catalog_json = "ai-switch-model-catalog.json"
 web_search = "disabled"
 disable_response_storage = true
 
@@ -2740,7 +2740,7 @@ command = "ghost-cmd"
     }
 
     // B 的 live：共享键传递到位，A 的密钥/投影不得跟过来
-    let live_after = std::fs::read_to_string(cc_switch_lib::get_codex_config_path())
+    let live_after = std::fs::read_to_string(ai_switch_lib::get_codex_config_path())
         .expect("read config.toml after switch");
     assert!(
         live_after.contains("disable_response_storage = true"),
@@ -2872,7 +2872,7 @@ wire_api = "responses"
         "kept shared key should remain in the snippet, got: {snippet}"
     );
 
-    let live_after = std::fs::read_to_string(cc_switch_lib::get_codex_config_path())
+    let live_after = std::fs::read_to_string(ai_switch_lib::get_codex_config_path())
         .expect("read config.toml after switch");
     assert!(
         !live_after.contains("disable_response_storage"),

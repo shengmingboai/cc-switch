@@ -11,9 +11,9 @@ use serde_json::{json, Map, Value};
 
 pub(crate) const WHOLE_DATA_URL_MIN_BYTES: usize = 8 * 1024;
 pub(crate) const TOOL_RESULT_MEDIA_MOVED_MARKER: &str =
-    "[cc-switch: tool result media moved to the following user message]";
+    "[ai-switch: tool result media moved to the following user message]";
 pub(crate) const TOOL_RESULT_MEDIA_ATTACHED_MARKER: &str =
-    "[cc-switch: tool result media attached as native media]";
+    "[ai-switch: tool result media attached as native media]";
 const BASE64ISH_MIN_BYTES: usize = 16 * 1024;
 const MAX_MEDIA_TRAVERSAL_DEPTH: usize = 32;
 
@@ -91,7 +91,7 @@ pub(crate) fn queue_chat_tool_output_media(
 
     pending_media.push(json!({
         "type": "text",
-        "text": format!("[cc-switch: media output of tool call {call_id}]")
+        "text": format!("[ai-switch: media output of tool call {call_id}]")
     }));
     pending_media.extend(media_parts);
 }
@@ -243,7 +243,7 @@ pub(crate) fn clamp_base64ish_strings(value: &mut Value) {
                 || looks_like_base64_payload(trimmed);
             if should_omit {
                 let byte_len = text.len();
-                *text = format!("[cc-switch: omitted {byte_len} bytes]");
+                *text = format!("[ai-switch: omitted {byte_len} bytes]");
             }
         }
         Value::Array(items) => {
@@ -848,7 +848,7 @@ mod tests {
 
         assert!(plan
             .tool_content
-            .contains("[cc-switch: omitted 20000 bytes]"));
+            .contains("[ai-switch: omitted 20000 bytes]"));
         assert!(!plan.tool_content.contains(&"A".repeat(64)));
         assert!(!plan.tool_content.contains("IMAGE_SENTINEL"));
         assert_eq!(plan.media_parts.len(), 1);
@@ -901,11 +901,11 @@ mod tests {
         assert!(value["data_url"]
             .as_str()
             .unwrap()
-            .starts_with("[cc-switch: omitted "));
+            .starts_with("[ai-switch: omitted "));
         assert!(value["raw"]
             .as_str()
             .unwrap()
-            .starts_with("[cc-switch: omitted "));
+            .starts_with("[ai-switch: omitted "));
     }
 
     #[test]

@@ -11,16 +11,16 @@ use crate::error::AppError;
 /// ## Windows 注意事项
 ///
 /// - `dirs::home_dir()` 在 Windows 上使用 `SHGetKnownFolderPath(FOLDERID_Profile)`，
-///   返回的是真实用户目录（类似 `C:\\Users\\Alice`），与 v3.10.2 行为一致。
+///   返回的是真实用户目录（类似 `C:\\Users\\Alice`）。
 /// - 不要直接使用 `HOME` 环境变量：它可能由 Git/Cygwin/MSYS 等第三方工具注入，
-///   且不一定等于用户目录，可能导致 `.cc-switch/cc-switch.db` 路径变化，从而“看起来像数据丢失”。
+///   且不一定等于用户目录，可能导致 `.ai-switch/ai-switch.db` 路径变化，从而“看起来像数据丢失”。
 ///
 /// ## 测试隔离
 ///
-/// 为了让 Windows CI/本地测试能稳定隔离真实用户数据，可通过 `CC_SWITCH_TEST_HOME`
+/// 为了让 Windows CI/本地测试能稳定隔离真实用户数据，可通过 `AI_SWITCH_TEST_HOME`
 /// 显式覆盖 home dir（仅用于测试/调试场景）。
 pub fn get_home_dir() -> PathBuf {
-    if let Ok(home) = std::env::var("CC_SWITCH_TEST_HOME") {
+    if let Ok(home) = std::env::var("AI_SWITCH_TEST_HOME") {
         let trimmed = home.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);
@@ -96,7 +96,7 @@ fn path_eq_lexical(left: &Path, right: &Path) -> bool {
 /// this works for non-existent paths. It is **not** a symlink defense: a
 /// symlink inside `base` can still lead a resolved path outside it. Callers
 /// that go on to open the file must canonicalize the existing path and
-/// re-verify containment (see `resolve_cc_switch_catalog_path`).
+/// re-verify containment (see `resolve_ai_switch_catalog_path`).
 /// On Windows the comparison is case-insensitive.
 pub(crate) fn path_is_within(base: &Path, path: &Path) -> bool {
     let base_key = comparable_path_key(base);
@@ -210,13 +210,13 @@ fn executable_sibling_data_dir(executable_path: &Path) -> Option<PathBuf> {
 /// Windows 始终使用启动 EXE 同级的 `data/`，确保 MSI 安装版和便携版使用一致的
 /// 本地存储语义。其他平台暂时保留当前工作目录下的 `data/`，避免 macOS App Bundle
 /// 和 Linux AppImage 的只读可执行目录导致启动失败。
-/// 测试场景通过 `CC_SWITCH_TEST_HOME` 隔离为 `<home>/.cc-switch`。
+/// 测试场景通过 `AI_SWITCH_TEST_HOME` 隔离为 `<home>/.ai-switch`。
 pub fn get_app_config_dir() -> PathBuf {
-    // 测试隔离：显式设置 CC_SWITCH_TEST_HOME 时仍使用 <home>/.cc-switch。
-    if let Ok(test_home) = std::env::var("CC_SWITCH_TEST_HOME") {
+    // 测试隔离：显式设置 AI_SWITCH_TEST_HOME 时仍使用 <home>/.ai-switch。
+    if let Ok(test_home) = std::env::var("AI_SWITCH_TEST_HOME") {
         let trimmed = test_home.trim();
         if !trimmed.is_empty() {
-            return PathBuf::from(trimmed).join(".cc-switch");
+            return PathBuf::from(trimmed).join(".ai-switch");
         }
     }
 
@@ -516,7 +516,7 @@ mod tests {
 
     #[test]
     fn executable_sibling_data_dir_uses_executable_parent() {
-        let executable_path = Path::new("portable-root").join("cc-switch.exe");
+        let executable_path = Path::new("portable-root").join("ai-switch.exe");
 
         assert_eq!(
             executable_sibling_data_dir(&executable_path),
@@ -576,10 +576,10 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
-    #[ignore = "requires CC_SWITCH_WSL_TEST_DIR to point to a WSL2 UNC directory"]
+    #[ignore = "requires AI_SWITCH_WSL_TEST_DIR to point to a WSL2 UNC directory"]
     fn atomic_write_replaces_existing_wsl_unc_file() {
         let root = PathBuf::from(
-            std::env::var_os("CC_SWITCH_WSL_TEST_DIR").expect("CC_SWITCH_WSL_TEST_DIR must be set"),
+            std::env::var_os("AI_SWITCH_WSL_TEST_DIR").expect("AI_SWITCH_WSL_TEST_DIR must be set"),
         );
         let home = get_home_dir();
         let temp = std::env::temp_dir();

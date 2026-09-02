@@ -12,7 +12,7 @@ AGENTS.md
 PROJECT_STRUCTURE.md
 /.claude
 /.codex
-/.cc-switch
+/.ai-switch
 /data
 /.idea
 /.vscode
@@ -20,7 +20,7 @@ vitest-report.json
 nul
 
 # Flatpak build artifacts
-flatpak/cc-switch.deb
+flatpak/ai-switch.deb
 flatpak-build/
 flatpak-repo/
 .worktrees/

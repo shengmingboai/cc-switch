@@ -2,7 +2,7 @@ use serde_json::json;
 use std::fs;
 use std::path::PathBuf;
 
-use cc_switch_lib::{
+use ai_switch_lib::{
     get_claude_settings_path, read_json_file, AppError, AppType, ConfigService, MultiAppConfig,
     Provider,
 };
@@ -101,8 +101,8 @@ fn sync_codex_provider_writes_config_without_touching_auth() {
 
     ConfigService::sync_current_providers_to_live(&mut config).expect("sync codex live");
 
-    let auth_path = cc_switch_lib::get_codex_auth_path();
-    let config_path = cc_switch_lib::get_codex_config_path();
+    let auth_path = ai_switch_lib::get_codex_auth_path();
+    let config_path = ai_switch_lib::get_codex_config_path();
 
     assert!(
         !auth_path.exists(),
@@ -224,7 +224,7 @@ base_url = "https://rightcode.example/v1"
 wire_api = "responses"
 requires_openai_auth = true
 "#;
-    cc_switch_lib::write_codex_live_atomic(&legacy_auth, Some(legacy_config))
+    ai_switch_lib::write_codex_live_atomic(&legacy_auth, Some(legacy_config))
         .expect("seed existing Codex live config");
 
     let mut config = MultiAppConfig::default();
@@ -259,7 +259,7 @@ requires_openai_auth = true
     ConfigService::sync_current_providers_to_live(&mut config).expect("sync codex live");
 
     let toml_text =
-        fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config.toml");
+        fs::read_to_string(ai_switch_lib::get_codex_config_path()).expect("read config.toml");
     let parsed: toml::Value = toml::from_str(&toml_text).expect("parse config.toml");
 
     assert_eq!(
@@ -302,7 +302,7 @@ fn sync_enabled_to_codex_writes_enabled_servers() {
     reset_test_fs();
 
     // 模拟 Codex 已安装/已初始化：存在 ~/.codex 目录
-    let path = cc_switch_lib::get_codex_config_path();
+    let path = ai_switch_lib::get_codex_config_path();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("create codex dir");
     }
@@ -321,7 +321,7 @@ fn sync_enabled_to_codex_writes_enabled_servers() {
         }),
     );
 
-    cc_switch_lib::sync_enabled_to_codex(&config).expect("sync codex");
+    ai_switch_lib::sync_enabled_to_codex(&config).expect("sync codex");
 
     assert!(path.exists(), "config.toml should be created");
     let text = fs::read_to_string(&path).expect("read config.toml");
@@ -337,7 +337,7 @@ fn sync_enabled_to_codex_preserves_non_mcp_content_and_style() {
     reset_test_fs();
 
     // 预置含有顶层注释与非 MCP 键的 config.toml
-    let path = cc_switch_lib::get_codex_config_path();
+    let path = ai_switch_lib::get_codex_config_path();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("create codex dir");
     }
@@ -360,7 +360,7 @@ mode = "dev"
         }),
     );
 
-    cc_switch_lib::sync_enabled_to_codex(&config).expect("sync codex");
+    ai_switch_lib::sync_enabled_to_codex(&config).expect("sync codex");
 
     let text = fs::read_to_string(&path).expect("read config.toml");
     // 顶层注释与非 MCP 键应保留
@@ -394,7 +394,7 @@ mode = "dev"
 fn sync_enabled_to_codex_migrates_erroneous_mcp_dot_servers_to_mcp_servers() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
-    let path = cc_switch_lib::get_codex_config_path();
+    let path = ai_switch_lib::get_codex_config_path();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("create codex dir");
     }
@@ -415,7 +415,7 @@ fn sync_enabled_to_codex_migrates_erroneous_mcp_dot_servers_to_mcp_servers() {
         }),
     );
 
-    cc_switch_lib::sync_enabled_to_codex(&config).expect("sync codex");
+    ai_switch_lib::sync_enabled_to_codex(&config).expect("sync codex");
     let text = fs::read_to_string(&path).expect("read config.toml");
     // 应迁移到顶层 mcp_servers，并移除错误的 mcp.servers 表
     assert!(
@@ -432,7 +432,7 @@ fn sync_enabled_to_codex_migrates_erroneous_mcp_dot_servers_to_mcp_servers() {
 fn sync_enabled_to_codex_removes_servers_when_none_enabled() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
-    let path = cc_switch_lib::get_codex_config_path();
+    let path = ai_switch_lib::get_codex_config_path();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("create codex dir");
     }
@@ -445,7 +445,7 @@ disabled = { type = "stdio", command = "noop" }
     .expect("seed config file");
 
     let config = MultiAppConfig::default(); // 无启用项
-    cc_switch_lib::sync_enabled_to_codex(&config).expect("sync codex");
+    ai_switch_lib::sync_enabled_to_codex(&config).expect("sync codex");
 
     let text = fs::read_to_string(&path).expect("read config.toml");
     assert!(
@@ -458,7 +458,7 @@ disabled = { type = "stdio", command = "noop" }
 fn sync_enabled_to_codex_returns_error_on_invalid_toml() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
-    let path = cc_switch_lib::get_codex_config_path();
+    let path = ai_switch_lib::get_codex_config_path();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("create codex dir");
     }
@@ -477,15 +477,15 @@ fn sync_enabled_to_codex_returns_error_on_invalid_toml() {
         }),
     );
 
-    let err = cc_switch_lib::sync_enabled_to_codex(&config).expect_err("sync should fail");
+    let err = ai_switch_lib::sync_enabled_to_codex(&config).expect_err("sync should fail");
     match err {
-        cc_switch_lib::AppError::Toml { path, .. } => {
+        ai_switch_lib::AppError::Toml { path, .. } => {
             assert!(
                 path.ends_with("config.toml"),
                 "path should reference config.toml"
             );
         }
-        cc_switch_lib::AppError::McpValidation(msg) => {
+        ai_switch_lib::AppError::McpValidation(msg) => {
             assert!(
                 msg.contains("config.toml"),
                 "error message should mention config.toml"
@@ -499,7 +499,7 @@ fn sync_enabled_to_codex_returns_error_on_invalid_toml() {
 fn sync_single_server_to_codex_fails_closed_on_invalid_toml() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
-    let path = cc_switch_lib::get_codex_config_path();
+    let path = ai_switch_lib::get_codex_config_path();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("create codex dir");
     }
@@ -508,14 +508,14 @@ fn sync_single_server_to_codex_fails_closed_on_invalid_toml() {
     fs::write(&path, broken).expect("write invalid config");
 
     let config = MultiAppConfig::default();
-    let err = cc_switch_lib::sync_single_server_to_codex(
+    let err = ai_switch_lib::sync_single_server_to_codex(
         &config,
         "srv",
         &json!({ "type": "stdio", "command": "echo" }),
     )
     .expect_err("sync should fail instead of wiping the file");
     match err {
-        cc_switch_lib::AppError::McpValidation(msg) => {
+        ai_switch_lib::AppError::McpValidation(msg) => {
             assert!(
                 msg.contains("config.toml"),
                 "error message should mention config.toml"
@@ -554,7 +554,7 @@ fn sync_codex_provider_missing_auth_returns_error() {
     let err = ConfigService::sync_current_providers_to_live(&mut config)
         .expect_err("sync should fail when auth missing");
     match err {
-        cc_switch_lib::AppError::Config(msg) => {
+        ai_switch_lib::AppError::Config(msg) => {
             assert!(msg.contains("auth"), "error message should mention auth");
         }
         other => panic!("unexpected error variant: {other:?}"),
@@ -562,11 +562,11 @@ fn sync_codex_provider_missing_auth_returns_error() {
 
     // 确认未产生任何 live 配置文件
     assert!(
-        !cc_switch_lib::get_codex_auth_path().exists(),
+        !ai_switch_lib::get_codex_auth_path().exists(),
         "auth.json should not be created on failure"
     );
     assert!(
-        !cc_switch_lib::get_codex_config_path().exists(),
+        !ai_switch_lib::get_codex_config_path().exists(),
         "config.toml should not be created on failure"
     );
 }
@@ -584,16 +584,16 @@ command = "echo"
 args = ["ok"]
 "#;
 
-    cc_switch_lib::write_codex_live_atomic(&auth, Some(config_text))
+    ai_switch_lib::write_codex_live_atomic(&auth, Some(config_text))
         .expect("atomic write should succeed");
 
-    let auth_path = cc_switch_lib::get_codex_auth_path();
-    let config_path = cc_switch_lib::get_codex_config_path();
+    let auth_path = ai_switch_lib::get_codex_auth_path();
+    let config_path = ai_switch_lib::get_codex_config_path();
     assert!(auth_path.exists(), "auth.json should be created");
     assert!(config_path.exists(), "config.toml should be created");
 
     let stored_auth: serde_json::Value =
-        cc_switch_lib::read_json_file(&auth_path).expect("read auth");
+        ai_switch_lib::read_json_file(&auth_path).expect("read auth");
     assert_eq!(stored_auth, auth, "auth.json should match input");
 
     let stored_config = std::fs::read_to_string(&config_path).expect("read config");
@@ -608,13 +608,13 @@ fn write_codex_live_atomic_rolls_back_auth_when_config_write_fails() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
 
-    let auth_path = cc_switch_lib::get_codex_auth_path();
+    let auth_path = ai_switch_lib::get_codex_auth_path();
     if let Some(parent) = auth_path.parent() {
         std::fs::create_dir_all(parent).expect("create codex dir");
     }
     std::fs::write(&auth_path, r#"{"OPENAI_API_KEY":"legacy"}"#).expect("seed auth");
 
-    let config_path = cc_switch_lib::get_codex_config_path();
+    let config_path = ai_switch_lib::get_codex_config_path();
     std::fs::create_dir_all(&config_path).expect("create blocking directory");
 
     let auth = json!({ "OPENAI_API_KEY": "new-key" });
@@ -623,16 +623,16 @@ type = "stdio"
 command = "noop"
 "#;
 
-    let err = cc_switch_lib::write_codex_live_atomic(&auth, Some(config_text))
+    let err = ai_switch_lib::write_codex_live_atomic(&auth, Some(config_text))
         .expect_err("config write should fail when target is directory");
     match err {
-        cc_switch_lib::AppError::Io { path, .. } => {
+        ai_switch_lib::AppError::Io { path, .. } => {
             assert!(
                 path.ends_with("config.toml"),
                 "io error path should point to config.toml"
             );
         }
-        cc_switch_lib::AppError::IoContext { context, .. } => {
+        ai_switch_lib::AppError::IoContext { context, .. } => {
             assert!(
                 context.contains("config.toml"),
                 "error context should mention config path"
@@ -658,7 +658,7 @@ command = "noop"
 fn import_from_codex_adds_servers_from_mcp_servers_table() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
-    let path = cc_switch_lib::get_codex_config_path();
+    let path = ai_switch_lib::get_codex_config_path();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("create codex dir");
     }
@@ -677,7 +677,7 @@ url = "https://example.com"
     .expect("write codex config");
 
     let mut config = MultiAppConfig::default();
-    let changed = cc_switch_lib::import_from_codex(&mut config).expect("import codex");
+    let changed = ai_switch_lib::import_from_codex(&mut config).expect("import codex");
     assert!(changed >= 2, "should import both servers");
 
     // v3.7.0: 检查统一结构
@@ -717,7 +717,7 @@ url = "https://example.com"
 fn import_from_codex_merges_into_existing_entries() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
-    let path = cc_switch_lib::get_codex_config_path();
+    let path = ai_switch_lib::get_codex_config_path();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("create codex dir");
     }
@@ -735,14 +735,14 @@ command = "echo"
     config.mcp.servers = Some(std::collections::HashMap::new());
     config.mcp.servers.as_mut().unwrap().insert(
         "existing".to_string(),
-        cc_switch_lib::McpServer {
+        ai_switch_lib::McpServer {
             id: "existing".to_string(),
             name: "existing".to_string(),
             server: json!({
                 "type": "stdio",
                 "command": "prev"
             }),
-            apps: cc_switch_lib::McpApps {
+            apps: ai_switch_lib::McpApps {
                 claude: false,
                 codex: false, // 初始未启用
                 grokbuild: false,
@@ -755,7 +755,7 @@ command = "echo"
         },
     );
 
-    let changed = cc_switch_lib::import_from_codex(&mut config).expect("import codex");
+    let changed = ai_switch_lib::import_from_codex(&mut config).expect("import codex");
     assert!(changed >= 1, "should mark change for enabled flag");
 
     // v3.7.0: 检查统一结构
@@ -814,9 +814,9 @@ fn sync_claude_enabled_mcp_projects_to_user_config() {
         }),
     );
 
-    cc_switch_lib::sync_enabled_to_claude(&config).expect("sync Claude MCP");
+    ai_switch_lib::sync_enabled_to_claude(&config).expect("sync Claude MCP");
 
-    let claude_path = cc_switch_lib::get_claude_mcp_path();
+    let claude_path = ai_switch_lib::get_claude_mcp_path();
     assert!(claude_path.exists(), "claude config should exist");
     let text = fs::read_to_string(&claude_path).expect("read .claude.json");
     let value: serde_json::Value = serde_json::from_str(&text).expect("parse claude json");
@@ -863,14 +863,14 @@ fn import_from_claude_merges_into_config() {
     config.mcp.servers = Some(std::collections::HashMap::new());
     config.mcp.servers.as_mut().unwrap().insert(
         "stdio-enabled".to_string(),
-        cc_switch_lib::McpServer {
+        ai_switch_lib::McpServer {
             id: "stdio-enabled".to_string(),
             name: "stdio-enabled".to_string(),
             server: json!({
                 "type": "stdio",
                 "command": "prev"
             }),
-            apps: cc_switch_lib::McpApps {
+            apps: ai_switch_lib::McpApps {
                 claude: false, // 初始未启用
                 codex: false,
                 grokbuild: false,
@@ -883,7 +883,7 @@ fn import_from_claude_merges_into_config() {
         },
     );
 
-    let changed = cc_switch_lib::import_from_claude(&mut config).expect("import from claude");
+    let changed = ai_switch_lib::import_from_claude(&mut config).expect("import from claude");
     assert!(changed >= 1, "should mark at least one change");
 
     // v3.7.0: 检查统一结构
@@ -915,7 +915,7 @@ fn create_backup_skips_missing_file() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
     let home = ensure_test_home();
-    let config_path = home.join(".cc-switch").join("config.json");
+    let config_path = home.join(".ai-switch").join("config.json");
 
     // 未创建文件时应返回空字符串，不报错
     let result = ConfigService::create_backup(&config_path).expect("create backup");
@@ -930,7 +930,7 @@ fn create_backup_generates_snapshot_file() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
     let home = ensure_test_home();
-    let config_dir = home.join(".cc-switch");
+    let config_dir = home.join(".ai-switch");
     let config_path = config_dir.join("config.json");
     fs::create_dir_all(&config_dir).expect("prepare config dir");
     fs::write(&config_path, r#"{"version":2}"#).expect("write config file");
@@ -960,7 +960,7 @@ fn create_backup_retains_only_latest_entries() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
     let home = ensure_test_home();
-    let config_dir = home.join(".cc-switch");
+    let config_dir = home.join(".ai-switch");
     let config_path = config_dir.join("config.json");
     fs::create_dir_all(&config_dir).expect("prepare config dir");
     fs::write(&config_path, r#"{"version":3}"#).expect("write config file");
@@ -1065,7 +1065,7 @@ fn export_sql_returns_error_for_invalid_path() {
 
     // Try to export to an invalid path (nonexistent parent or invalid name on Windows)
     let invalid_parent = if cfg!(windows) {
-        std::env::temp_dir().join("cc-switch-test-invalid<>dir")
+        std::env::temp_dir().join("ai-switch-test-invalid<>dir")
     } else {
         PathBuf::from("/nonexistent/directory")
     };
@@ -1095,20 +1095,20 @@ fn export_sql_returns_error_for_invalid_path() {
 }
 
 #[test]
-fn import_sql_rejects_non_cc_switch_backup() {
+fn import_sql_rejects_non_ai_switch_backup() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
     let home = ensure_test_home();
 
     let state = create_test_state().expect("create test state");
 
-    let import_path = home.join("not-cc-switch.sql");
+    let import_path = home.join("not-ai-switch.sql");
     fs::write(&import_path, "CREATE TABLE x (id INTEGER);").expect("write import sql");
 
     let err = state
         .db
         .import_sql(&import_path)
-        .expect_err("non-cc-switch sql should be rejected");
+        .expect_err("non-ai-switch sql should be rejected");
 
     match err {
         AppError::Localized { key, .. } => {
@@ -1119,7 +1119,7 @@ fn import_sql_rejects_non_cc_switch_backup() {
 }
 
 #[test]
-fn import_sql_accepts_cc_switch_exported_backup() {
+fn import_sql_accepts_ai_switch_exported_backup() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
     let home = ensure_test_home();
@@ -1143,7 +1143,7 @@ fn import_sql_accepts_cc_switch_exported_backup() {
     }
 
     let state = create_test_state_with_config(&config).expect("create test state");
-    let export_path = home.join("cc-switch-export.sql");
+    let export_path = home.join("ai-switch-export.sql");
     state
         .db
         .export_sql(&export_path)
